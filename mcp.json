@@ -1,0 +1,19 @@
+{
+  "name": "infinity-xos-mcp",
+  "version": "1.0.0",
+  "entrypoint": "python main.py",
+  "tools": [
+    {
+      "name": "execute",
+      "description": "Forward command to Infinity XOS Orchestrator",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "command": { "type": "string" },
+          "payload": { "type": "object" }
+        },
+        "required": ["command"]
+      }
+    }
+  ]
+}
