@@ -1,0 +1,30 @@
+openapi: 3.0.1
+info:
+  title: Infinity XOS MCP
+  description: HTTP adapter for MCP tools
+  version: 1.0.0
+servers:
+  - url: https://mcp-agent-896380409704.us-east1.run.app
+paths:
+  /run:
+    post:
+      summary: Invoke an MCP tool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tool:
+                  type: string
+                args:
+                  type: object
+      responses:
+        '200':
+          description: Tool result
+          content:
+            application/json:
+              schema:
+                type: object
+components: {}

@@ -1,0 +1,18 @@
+{
+    "schema_version": "v1",
+    "name_for_human": "Infinity XOS MCP",
+    "name_for_model": "infinity_xos_mcp",
+    "description_for_human": "Expose Infinity XOS MCP tools via HTTP for model integration.",
+    "description_for_model": "Use this API to invoke MCP tools on the Infinity XOS server. Authenticate with a bearer token.",
+    "auth": {
+        "type": "service_http",
+        "authorization_type": "bearer"
+    },
+    "api": {
+        "type": "openapi",
+        "url": "https://mcp-agent-896380409704.us-east1.run.app/.well-known/openapi.yaml"
+    },
+    "logo_url": "https://mcp-agent-896380409704.us-east1.run.app/logo.png",
+    "contact_email": "admin@infinityxos.example",
+    "legal_info_url": "https://mcp-agent-896380409704.us-east1.run.app/legal.html"
+}
