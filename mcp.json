@@ -2,16 +2,6 @@
   "name": "infinity-xos-mcp",
   "version": "1.0.0",
   "entrypoint": "python main.py",
-  "description": "MCP server for Infinity XOS — default stdio transport. Add an HTTP transport to expose this MCP to OpenAI or other services.",
-  "protocols": [
-    "stdio",
-    "http"
-  ],
-  "authentication": {
-    "type": "env",
-    "env_var": "MCP_API_KEY",
-    "note": "If you expose an HTTP endpoint, use this env var as a bearer token for incoming requests."
-  },
   "tools": [
     {
       "name": "execute",
@@ -19,22 +9,11 @@
       "input_schema": {
         "type": "object",
         "properties": {
-          "command": {
-            "type": "string"
-          },
-          "payload": {
-            "type": "object"
-          }
+          "command": { "type": "string" },
+          "payload": { "type": "object" }
         },
-        "required": [
-          "command"
-        ]
+        "required": ["command"]
       }
     }
-  ],
-  "compatibility": {
-    "openai": {
-      "notes": "OpenAI (or other hosted services) requires a publicly reachable HTTP(s) endpoint. This MCP includes stdio by default; to connect from OpenAI, run an HTTP transport and expose it to the internet (ngrok, Cloud VM, or similar). Use the `MCP_API_KEY` env var as a bearer token.`"
-    }
-  }
+  ]
 }

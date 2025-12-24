@@ -1,21 +1,23 @@
-﻿import asyncio
 from mcp.server import Server
-from mcp.server.stdio import stdio_server
-from mcp.types import TextContent
+import httpx
+import os
 
-server = Server(
-    name="mcp",
-    version="1.0.0",
-    capabilities={"tools": {}}
+ORCHESTRATOR_URL = os.getenv(
+    "ORCHESTRATOR_URL",
+    "https://orchestrator-896380409704.us-east1.run.app/execute"
 )
 
-@server.tool(name="ping", description="Ping test")
-async def ping():
-    return [TextContent(type="text", text="pong")]
+server = Server("infinity-xos-mcp")
 
-async def main():
-    async with stdio_server() as (read, write):
-        await server.run(read, write)
+@server.tool()
+async def execute(command: str, payload: dict | None = None):
+    async with httpx.AsyncClient(timeout=30) as client:
+        r = await client.post(
+            ORCHESTRATOR_URL,
+            json={"command": command, "payload": payload or {}}
+        )
+        r.raise_for_status()
+        return r.json()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    server.run()
