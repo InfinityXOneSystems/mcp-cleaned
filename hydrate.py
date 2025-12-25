@@ -164,6 +164,27 @@ def save_firebase_credentials():
 
     return saved
 
+def load_openai_key():
+    url = f"{MCP_AGENT_BASE}/gcp/get_secret"
+    body = {'secret_name': 'projects/896380409704/secrets/openai-api-key'}
+    print('-> Loading OpenAI API key from Secret Manager...')
+    res = call(url, method='POST', json_body=body, allow_404=True)
+    if res and '__error' not in res:
+        return res.get('data', '')
+    return None
+
+def save_openai_credentials():
+    cred_dir = os.path.expanduser('C:/Users/JARVIS/AppData/Local/InfinityXOne/CredentialManager')
+    os.makedirs(cred_dir, exist_ok=True)
+    key = load_openai_key()
+    if key:
+        env_path = os.path.join(cred_dir, '.env.openai')
+        with open(env_path, 'w', encoding='utf-8') as f:
+            f.write(f'OPENAI_API_KEY={key}\n')
+        print(f'  ✓ OpenAI key saved: {env_path}')
+        return { 'key_saved': True }
+    return { 'key_saved': False }
+
 def main():
     summary = {'hydration_time': datetime.utcnow().isoformat() + 'Z'}
     print('\n===== INFINITY XOS HYDRATOR START =====')
@@ -195,6 +216,11 @@ def main():
     print('-> Hydrating Firebase credentials...')
     fb_saved = save_firebase_credentials()
     summary['firebase'] = fb_saved
+
+    # STEP 7: hydrate OpenAI credentials
+    print('-> Hydrating OpenAI credentials...')
+    oa_saved = save_openai_credentials()
+    summary['openai'] = oa_saved
 
     # Build Hydration Summary
     print('\n[Hydration Summary]')
