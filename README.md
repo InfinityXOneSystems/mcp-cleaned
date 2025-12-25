@@ -67,7 +67,9 @@ python intelligence_api.py
 
 ## MCP Server
 
-- Run the MCP server (stdio):
+### Standard MCP (Orchestrator Only)
+
+- Run the basic MCP server (stdio):
 
 ```powershell
 python main.py
@@ -80,4 +82,53 @@ $env:ORCHESTRATOR_URL = "https://orchestrator-896380409704.us-east1.run.app/exec
 python main.py
 ```
 
-The MCP server exposes a single tool `execute(command, payload)` that forwards to the orchestrator.
+The basic MCP server exposes a single tool `execute(command, payload)` that forwards to the orchestrator.
+
+### 🌌 Omni-Directional Hub (Full Integration)
+
+The extended MCP creates an **omni-directional AI hub** connecting multiple systems for maximum autonomous capabilities.
+
+- Run the Omni Hub:
+
+```powershell
+$env:GITHUB_TOKEN = "your_github_token"
+python main_extended.py
+```
+
+- Test the hub:
+
+```powershell
+python test_omni_hub.py
+```
+
+**15 Tools Across 4 Systems:**
+
+🔧 **Orchestrator** (1 tool)
+- `execute` - Forward commands to Infinity XOS cloud
+
+🐙 **GitHub** (3 tools)
+- `github_create_issue` - Create issues in any repo
+- `github_search_code` - Search code across GitHub
+- `github_get_file_content` - Fetch file contents
+
+🐳 **Docker** (9 tools)
+- `docker_list_containers` - List all containers
+- `docker_container_action` - Start/stop/restart/remove
+- `docker_run_container` - Launch new containers
+- `docker_list_images` - List Docker images
+- `docker_pull_image` - Pull from registry
+- `docker_container_logs` - View logs
+- `docker_container_inspect` - Inspect details
+- `docker_list_networks` - List networks
+- `docker_list_volumes` - List volumes
+
+🧠 **Local Intelligence** (2 tools)
+- `query_intelligence` - Search 1,271 intelligence sources
+- `get_portfolio_status` - Get trading portfolio stats
+
+**Prerequisites:**
+- Docker Desktop running (for Docker tools)
+- mcp_memory.db initialized (for intelligence tools)
+- GitHub token set (for GitHub tools)
+
+Both MCP servers are safe to run side-by-side (use different names in MCP clients).

@@ -1,0 +1,304 @@
+{
+    "name": "infinity-xos-mcp-omni-hub",
+    "version": "2.0.0",
+    "entrypoint": "python main_extended.py",
+    "description": "Omni-Directional AI Hub - Orchestrator + GitHub + Docker + Local Intelligence",
+    "tools": [
+        {
+            "name": "execute",
+            "description": "Forward command to Infinity XOS Orchestrator",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "command": {
+                        "type": "string"
+                    },
+                    "payload": {
+                        "type": "object"
+                    }
+                },
+                "required": [
+                    "command"
+                ]
+            }
+        },
+        {
+            "name": "github_create_issue",
+            "description": "Create a GitHub issue in the specified repository",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "owner": {
+                        "type": "string",
+                        "description": "Repository owner"
+                    },
+                    "repo": {
+                        "type": "string",
+                        "description": "Repository name"
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Issue title"
+                    },
+                    "body": {
+                        "type": "string",
+                        "description": "Issue body/description"
+                    },
+                    "labels": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "Optional labels"
+                    }
+                },
+                "required": [
+                    "owner",
+                    "repo",
+                    "title",
+                    "body"
+                ]
+            }
+        },
+        {
+            "name": "github_search_code",
+            "description": "Search for code across GitHub repositories",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query"
+                    },
+                    "owner": {
+                        "type": "string",
+                        "description": "Optional: filter by owner/org"
+                    },
+                    "repo": {
+                        "type": "string",
+                        "description": "Optional: filter by repository"
+                    },
+                    "max_results": {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Max results to return"
+                    }
+                },
+                "required": [
+                    "query"
+                ]
+            }
+        },
+        {
+            "name": "github_get_file_content",
+            "description": "Get the content of a file from a GitHub repository",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "owner": {
+                        "type": "string",
+                        "description": "Repository owner"
+                    },
+                    "repo": {
+                        "type": "string",
+                        "description": "Repository name"
+                    },
+                    "path": {
+                        "type": "string",
+                        "description": "File path in repo"
+                    },
+                    "branch": {
+                        "type": "string",
+                        "default": "main",
+                        "description": "Branch name"
+                    }
+                },
+                "required": [
+                    "owner",
+                    "repo",
+                    "path"
+                ]
+            }
+        },
+        {
+            "name": "query_intelligence",
+            "description": "Query intelligence sources from local memory database",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "category": {
+                        "type": "string",
+                        "description": "Optional category filter"
+                    },
+                    "search": {
+                        "type": "string",
+                        "description": "Optional search term"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Max results"
+                    }
+                }
+            }
+        },
+        {
+            "name": "get_portfolio_status",
+            "description": "Get current trading portfolio status",
+            "input_schema": {
+                "type": "object",
+                "properties": {}
+            }
+        },
+        {
+            "name": "docker_list_containers",
+            "description": "List Docker containers (running or all)",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "all": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Include stopped containers"
+                    }
+                }
+            }
+        },
+        {
+            "name": "docker_container_action",
+            "description": "Control Docker containers (start/stop/restart/remove)",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "enum": [
+                            "start",
+                            "stop",
+                            "restart",
+                            "remove"
+                        ],
+                        "description": "Action to perform"
+                    },
+                    "container": {
+                        "type": "string",
+                        "description": "Container name or ID"
+                    }
+                },
+                "required": [
+                    "action",
+                    "container"
+                ]
+            }
+        },
+        {
+            "name": "docker_run_container",
+            "description": "Run a new Docker container",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "image": {
+                        "type": "string",
+                        "description": "Image name"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Container name"
+                    },
+                    "ports": {
+                        "type": "object",
+                        "description": "Port mappings {container_port: host_port}"
+                    },
+                    "environment": {
+                        "type": "object",
+                        "description": "Environment variables"
+                    },
+                    "detach": {
+                        "type": "boolean",
+                        "default": true
+                    }
+                },
+                "required": [
+                    "image"
+                ]
+            }
+        },
+        {
+            "name": "docker_list_images",
+            "description": "List Docker images",
+            "input_schema": {
+                "type": "object",
+                "properties": {}
+            }
+        },
+        {
+            "name": "docker_pull_image",
+            "description": "Pull a Docker image from registry",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "image": {
+                        "type": "string",
+                        "description": "Image name with optional tag"
+                    }
+                },
+                "required": [
+                    "image"
+                ]
+            }
+        },
+        {
+            "name": "docker_container_logs",
+            "description": "Get container logs",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "container": {
+                        "type": "string",
+                        "description": "Container name or ID"
+                    },
+                    "tail": {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Number of lines to show"
+                    }
+                },
+                "required": [
+                    "container"
+                ]
+            }
+        },
+        {
+            "name": "docker_container_inspect",
+            "description": "Inspect container details",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "container": {
+                        "type": "string",
+                        "description": "Container name or ID"
+                    }
+                },
+                "required": [
+                    "container"
+                ]
+            }
+        },
+        {
+            "name": "docker_list_networks",
+            "description": "List Docker networks",
+            "input_schema": {
+                "type": "object",
+                "properties": {}
+            }
+        },
+        {
+            "name": "docker_list_volumes",
+            "description": "List Docker volumes",
+            "input_schema": {
+                "type": "object",
+                "properties": {}
+            }
+        }
+    ]
+}
