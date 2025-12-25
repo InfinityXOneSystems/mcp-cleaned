@@ -117,6 +117,53 @@ def validate_orchestrator():
     o['execute_probe'] = call(f"{ORCHESTRATOR_BASE}/execute", 'POST', json_body={'probe':True}, allow_404=True)
     return o
 
+def load_firebase_config():
+    """Load Firebase client config from Secret Manager"""
+    url = f"{MCP_AGENT_BASE}/gcp/get_secret"
+    body = {'secret_name': 'projects/896380409704/secrets/firebase-config'}
+    print('-> Loading Firebase config from Secret Manager...')
+    res = call(url, method='POST', json_body=body, allow_404=True)
+    if res and '__error' not in res:
+        try:
+            return json.loads(res.get('data', '{}'))
+        except Exception:
+            return None
+    return None
+
+def load_gemini_key():
+    """Load Gemini API key from Secret Manager"""
+    url = f"{MCP_AGENT_BASE}/gcp/get_secret"
+    body = {'secret_name': 'projects/896380409704/secrets/gemini-api-key'}
+    print('-> Loading Gemini API key from Secret Manager...')
+    res = call(url, method='POST', json_body=body, allow_404=True)
+    if res and '__error' not in res:
+        return res.get('data', '')
+    return None
+
+def save_firebase_credentials():
+    """Save Firebase config and Gemini key locally (CredentialManager)"""
+    cred_dir = os.path.expanduser('C:/Users/JARVIS/AppData/Local/InfinityXOne/CredentialManager')
+    os.makedirs(cred_dir, exist_ok=True)
+    saved = {'config': False, 'gemini': False}
+
+    fb_cfg = load_firebase_config()
+    if fb_cfg:
+        cfg_path = os.path.join(cred_dir, 'firebase-config.json')
+        with open(cfg_path, 'w', encoding='utf-8') as f:
+            json.dump(fb_cfg, f, indent=2)
+        print(f'  ✓ Firebase config saved: {cfg_path}')
+        saved['config'] = True
+
+    gemini = load_gemini_key()
+    if gemini:
+        env_path = os.path.join(cred_dir, '.env.firebase')
+        with open(env_path, 'w', encoding='utf-8') as f:
+            f.write(f'GEMINI_KEY={gemini}\n')
+        print(f'  ✓ Gemini key saved: {env_path}')
+        saved['gemini'] = True
+
+    return saved
+
 def main():
     summary = {'hydration_time': datetime.utcnow().isoformat() + 'Z'}
     print('\n===== INFINITY XOS HYDRATOR START =====')
@@ -143,6 +190,11 @@ def main():
         'config_loaded': github_app_config is not None,
         'key_loaded': github_app_key is not None
     }
+
+    # STEP 6: hydrate Firebase credentials
+    print('-> Hydrating Firebase credentials...')
+    fb_saved = save_firebase_credentials()
+    summary['firebase'] = fb_saved
 
     # Build Hydration Summary
     print('\n[Hydration Summary]')

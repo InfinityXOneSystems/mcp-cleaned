@@ -53,3 +53,7 @@ logs/
 .github-app-private-key.pem
 *private-key*.pem
 github-app-private-key.pem
+
+# Firebase secrets (client/admin) - NEVER COMMIT
+firebase_config.json
+firebase-admin-sa.json

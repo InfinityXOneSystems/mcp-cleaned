@@ -12,4 +12,5 @@ google-auth
 google-cloud-secret-manager
 aiohttp
 aiodns
+firebase-admin
 

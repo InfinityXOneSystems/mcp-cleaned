@@ -134,8 +134,8 @@ class GitHubApp:
     
     def list_organization_repos(self):
         """List all repositories in the organization"""
-        org = self.config.get('organization', 'InfinityXOneSystems')
-        return self.make_api_request('GET', f'/orgs/{org}/repos', 'infinityxone')
+        # Use the organization installation (100945151) for Infinity-X-One-Systems
+        return self.make_api_request('GET', '/installation/repositories', 'infinityxone')
     
     def get_rate_limit(self, installation_type='infinityxone'):
         """Check API rate limit status"""
