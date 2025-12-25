@@ -47,3 +47,9 @@ logs/
 # Environment
 .env
 .env.local
+
+# GitHub App Secrets - NEVER COMMIT
+.github-app-config.json
+.github-app-private-key.pem
+*private-key*.pem
+github-app-private-key.pem

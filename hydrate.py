@@ -46,6 +46,49 @@ def load_service_account():
     res = call(url, method='POST', json_body=body)
     return res
 
+def load_github_app_config():
+    """Load GitHub App configuration from Secret Manager"""
+    url = f"{MCP_AGENT_BASE}/gcp/get_secret"
+    body = {'secret_name': 'projects/896380409704/secrets/github-app-config'}
+    print('-> Loading GitHub App config from Secret Manager...')
+    res = call(url, method='POST', json_body=body, allow_404=True)
+    if res and '__error' not in res:
+        return json.loads(res.get('data', '{}'))
+    return None
+
+def load_github_app_private_key():
+    """Load GitHub App private key from Secret Manager"""
+    url = f"{MCP_AGENT_BASE}/gcp/get_secret"
+    body = {'secret_name': 'projects/896380409704/secrets/github-app-private-key'}
+    print('-> Loading GitHub App private key from Secret Manager...')
+    res = call(url, method='POST', json_body=body, allow_404=True)
+    if res and '__error' not in res:
+        return res.get('data', '')
+    return None
+
+def save_github_credentials():
+    """Save GitHub App credentials locally"""
+    cred_dir = os.path.expanduser('C:/Users/JARVIS/AppData/Local/InfinityXOne/CredentialManager')
+    os.makedirs(cred_dir, exist_ok=True)
+    
+    # Load GitHub App config
+    app_config = load_github_app_config()
+    if app_config:
+        config_path = os.path.join(cred_dir, '.github-app-config.json')
+        with open(config_path, 'w') as f:
+            json.dump(app_config, f, indent=2)
+        print(f'  ✓ GitHub App config saved: {config_path}')
+    
+    # Load GitHub App private key
+    private_key = load_github_app_private_key()
+    if private_key:
+        key_path = os.path.join(cred_dir, 'github-app-private-key.pem')
+        with open(key_path, 'w') as f:
+            f.write(private_key)
+        print(f'  ✓ GitHub App private key saved: {key_path}')
+    
+    return app_config, private_key
+
 def hydrate_memory():
     # try /recall then /memory/rehydrate
     url1 = f"{MEMORY_GATEWAY_BASE}/recall"
@@ -92,6 +135,14 @@ def main():
     # STEP 4: validate orchestrator
     orch = validate_orchestrator()
     summary['orchestrator'] = orch
+
+    # STEP 5: hydrate GitHub App credentials
+    print('-> Hydrating GitHub App credentials...')
+    github_app_config, github_app_key = save_github_credentials()
+    summary['github_app'] = {
+        'config_loaded': github_app_config is not None,
+        'key_loaded': github_app_key is not None
+    }
 
     # Build Hydration Summary
     print('\n[Hydration Summary]')

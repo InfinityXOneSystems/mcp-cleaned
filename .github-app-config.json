@@ -8,9 +8,9 @@
     "webhook_url": "https://admin.infinityxai.com/webhooks/github",
     "setup_url": "https://infinityxai.com/admin",
     "public_link": "https://github.com/apps/infinity-xos-orchestrator",
-    "installation_id_personal": "REPLACE_WITH_YOUR_PERSONAL_INSTALLATION_ID",
-    "installation_id_infinityxone": "REPLACE_WITH_INFINITYXONE_INSTALLATION_ID",
-    "webhook_secret": "REPLACE_WITH_WEBHOOK_SECRET",
+    "installation_id_personal": "58875455",
+    "installation_id_infinityxone": "58875455",
+    "webhook_secret": "123456789123456789",
     "permissions": {
         "contents": "write",
         "issues": "write",
