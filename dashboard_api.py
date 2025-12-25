@@ -9,6 +9,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
+from typing import Optional
+from fastapi import Query
 import sqlite3
 from datetime import datetime
 from typing import List, Dict

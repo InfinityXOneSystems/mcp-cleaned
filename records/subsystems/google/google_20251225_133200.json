@@ -1,0 +1,11 @@
+{
+  "name": "google",
+  "status": "skipped",
+  "checks": [
+    {
+      "check": "credentials_present",
+      "result": false
+    }
+  ],
+  "note": "GOOGLE_APPLICATION_CREDENTIALS not set or file missing"
+}

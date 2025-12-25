@@ -1,0 +1,14 @@
+{
+  "name": "hostinger",
+  "status": "success",
+  "checks": [
+    {
+      "check": "api_key_present",
+      "result": true
+    },
+    {
+      "check": "list_domains_helper",
+      "result": "fallback: cannot import name 'hostinger_api' from 'hostinger_helper' (C:\\AI\\repos\\mcp\\hostinger_helper.py)"
+    }
+  ]
+}
