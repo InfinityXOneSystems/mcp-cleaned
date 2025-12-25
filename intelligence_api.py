@@ -12,15 +12,6 @@ import sqlite3
 import json
 from typing import List, Dict, Optional
 from datetime import datetime
-import os as _os
-
-try:
-    from .openai_helper import chat as openai_chat
-except Exception:
-    try:
-        from openai_helper import chat as openai_chat
-    except Exception:
-        openai_chat = None
 
 app = FastAPI()
 
@@ -195,26 +186,6 @@ async def get_source_preview(source_id: int):
         'key': key,
         'data': data
     }
-
-
-@app.post("/api/ai/openai/chat")
-async def api_openai_chat(payload: Dict):
-    if openai_chat is None:
-        raise HTTPException(status_code=400, detail="openai package not available")
-
-    messages = payload.get('messages') or []
-    prompt = payload.get('prompt')
-    if not messages and prompt:
-        messages = [{ 'role': 'user', 'content': prompt }]
-
-    model = payload.get('model') or _os.getenv('OPENAI_MODEL', 'gpt-4o-mini')
-    temperature = float(payload.get('temperature', 0.7))
-    system = payload.get('system')
-
-    result = openai_chat(messages, model=model, system=system, temperature=temperature)
-    if isinstance(result, dict) and 'error' in result:
-        raise HTTPException(status_code=400, detail=str(result['error']))
-    return result
 
 
 if __name__ == '__main__':

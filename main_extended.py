@@ -69,6 +69,14 @@ GOVERNANCE_RULES = {
     # ChatGPT MCP
     "chatgpt_auto_builder_execute": (GovernanceLevel.MEDIUM, "External AI call"),
 
+    # Hostinger
+    "hostinger_list_domains": (GovernanceLevel.LOW, "Lists domains"),
+    "hostinger_get_domain_info": (GovernanceLevel.LOW, "Get domain info"),
+    "hostinger_list_dns_records": (GovernanceLevel.LOW, "Lists DNS records"),
+    "hostinger_create_dns_record": (GovernanceLevel.HIGH, "Creates DNS record"),
+    "hostinger_update_dns_record": (GovernanceLevel.HIGH, "Updates DNS record"),
+    "hostinger_delete_dns_record": (GovernanceLevel.CRITICAL, "Deletes DNS record"),
+
     # Default
     "default": (GovernanceLevel.MEDIUM, "Standard operation")
 }
@@ -894,6 +902,107 @@ TOOLS = [
             },
             "required": ["command"]
         }
+    ),
+    # ===== HOSTINGER HOSTING =====
+    Tool(
+        name="hostinger_list_domains",
+        description="List all domains in Hostinger account",
+        inputSchema={"type": "object", "properties": {}}
+    ),
+    Tool(
+        name="hostinger_get_domain_info",
+        description="Get detailed information about a specific domain",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string", "description": "Domain name"}
+            },
+            "required": ["domain"]
+        }
+    ),
+    Tool(
+        name="hostinger_list_dns_records",
+        description="List DNS records for a domain",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string", "description": "Domain name"}
+            },
+            "required": ["domain"]
+        }
+    ),
+    Tool(
+        name="hostinger_create_dns_record",
+        description="Create a new DNS record for a domain",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string", "description": "Domain name"},
+                "record_type": {"type": "string", "enum": ["A", "AAAA", "CNAME", "MX", "TXT", "NS"], "description": "DNS record type"},
+                "name": {"type": "string", "description": "Record name"},
+                "content": {"type": "string", "description": "Record content/value"},
+                "ttl": {"type": "integer", "default": 3600, "description": "TTL in seconds"}
+            },
+            "required": ["domain", "record_type", "name", "content"]
+        }
+    ),
+    Tool(
+        name="hostinger_update_dns_record",
+        description="Update an existing DNS record",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string", "description": "Domain name"},
+                "record_id": {"type": "string", "description": "DNS record ID"},
+                "content": {"type": "string", "description": "New record content/value"}
+            },
+            "required": ["domain", "record_id", "content"]
+        }
+    ),
+    Tool(
+        name="hostinger_delete_dns_record",
+        description="Delete a DNS record",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string", "description": "Domain name"},
+                "record_id": {"type": "string", "description": "DNS record ID"}
+            },
+            "required": ["domain", "record_id"]
+        }
+    ),
+    Tool(
+        name="hostinger_list_ssl_certificates",
+        description="List SSL certificates for a domain",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string", "description": "Domain name"}
+            },
+            "required": ["domain"]
+        }
+    ),
+    Tool(
+        name="hostinger_get_website_status",
+        description="Get website hosting status and details",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string", "description": "Domain name"}
+            },
+            "required": ["domain"]
+        }
+    ),
+    Tool(
+        name="hostinger_list_databases",
+        description="List databases for a website",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string", "description": "Domain name"}
+            },
+            "required": ["domain"]
+        }
     )
 ]
 
@@ -1038,6 +1147,25 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         return await tool_google_video_analyze(arguments)
     elif name == "chatgpt_auto_builder_execute":
         return await tool_chatgpt_auto_builder_execute(arguments)
+    # ===== HOSTINGER =====
+    elif name == "hostinger_list_domains":
+        return await tool_hostinger_list_domains()
+    elif name == "hostinger_get_domain_info":
+        return await tool_hostinger_get_domain_info(arguments)
+    elif name == "hostinger_list_dns_records":
+        return await tool_hostinger_list_dns_records(arguments)
+    elif name == "hostinger_create_dns_record":
+        return await tool_hostinger_create_dns_record(arguments)
+    elif name == "hostinger_update_dns_record":
+        return await tool_hostinger_update_dns_record(arguments)
+    elif name == "hostinger_delete_dns_record":
+        return await tool_hostinger_delete_dns_record(arguments)
+    elif name == "hostinger_list_ssl_certificates":
+        return await tool_hostinger_list_ssl_certificates(arguments)
+    elif name == "hostinger_get_website_status":
+        return await tool_hostinger_get_website_status(arguments)
+    elif name == "hostinger_list_databases":
+        return await tool_hostinger_list_databases(arguments)
     else:
         raise ValueError(f"Unknown tool: {name}")
 
@@ -1846,6 +1974,131 @@ async def tool_google_video_analyze(args: dict) -> list[TextContent]:
         "features": args.get("features", []),
         "analysis": []
     }))]
+
+# ===== HOSTINGER HOSTING PLATFORM =====
+async def tool_hostinger_list_domains() -> list[TextContent]:
+    """List all domains in Hostinger account"""
+    try:
+        import hostinger_helper
+        result = await hostinger_helper.list_domains()
+        return [TextContent(type="text", text=json.dumps(result))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({
+            "error": str(e),
+            "service": "Hostinger",
+            "setup": "Set HOSTINGER_API_KEY environment variable"
+        }))]
+
+async def tool_hostinger_get_domain_info(args: dict) -> list[TextContent]:
+    """Get domain information"""
+    try:
+        import hostinger_helper
+        result = await hostinger_helper.get_domain_info(args["domain"])
+        return [TextContent(type="text", text=json.dumps(result))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_hostinger_list_dns_records(args: dict) -> list[TextContent]:
+    """List DNS records for a domain"""
+    try:
+        import hostinger_helper
+        result = await hostinger_helper.list_dns_records(args["domain"])
+        return [TextContent(type="text", text=json.dumps(result))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_hostinger_create_dns_record(args: dict) -> list[TextContent]:
+    """Create a DNS record with governance"""
+    gov = check_governance("hostinger_create_dns_record")
+    if not gov["allowed"]:
+        return [TextContent(type="text", text=json.dumps({
+            "error": "Operation blocked by governance",
+            "governance": gov
+        }))]
+    
+    try:
+        import hostinger_helper
+        result = await hostinger_helper.create_dns_record(
+            args["domain"],
+            args["record_type"],
+            args["name"],
+            args["content"],
+            args.get("ttl", 3600)
+        )
+        logger.info(f"Hostinger DNS record created: {args['domain']} {args['record_type']}")
+        return [TextContent(type="text", text=json.dumps(result))]
+    except Exception as e:
+        logger.error(f"Hostinger DNS create error: {e}")
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_hostinger_update_dns_record(args: dict) -> list[TextContent]:
+    """Update a DNS record with governance"""
+    gov = check_governance("hostinger_update_dns_record")
+    if not gov["allowed"]:
+        return [TextContent(type="text", text=json.dumps({
+            "error": "Operation blocked by governance",
+            "governance": gov
+        }))]
+    
+    try:
+        import hostinger_helper
+        result = await hostinger_helper.update_dns_record(
+            args["domain"],
+            args["record_id"],
+            args["content"]
+        )
+        logger.info(f"Hostinger DNS record updated: {args['domain']}")
+        return [TextContent(type="text", text=json.dumps(result))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_hostinger_delete_dns_record(args: dict) -> list[TextContent]:
+    """Delete a DNS record with CRITICAL governance"""
+    gov = check_governance("hostinger_delete_dns_record")
+    if not gov["allowed"]:
+        return [TextContent(type="text", text=json.dumps({
+            "error": "CRITICAL operation blocked by governance",
+            "governance": gov
+        }))]
+    
+    logger.warning(f"CRITICAL: Hostinger DNS delete requested for {args['domain']}")
+    
+    try:
+        import hostinger_helper
+        result = await hostinger_helper.delete_dns_record(
+            args["domain"],
+            args["record_id"]
+        )
+        return [TextContent(type="text", text=json.dumps(result))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_hostinger_list_ssl_certificates(args: dict) -> list[TextContent]:
+    """List SSL certificates for a domain"""
+    try:
+        import hostinger_helper
+        result = await hostinger_helper.list_ssl_certificates(args["domain"])
+        return [TextContent(type="text", text=json.dumps(result))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_hostinger_get_website_status(args: dict) -> list[TextContent]:
+    """Get website hosting status"""
+    try:
+        import hostinger_helper
+        result = await hostinger_helper.get_website_status(args["domain"])
+        return [TextContent(type="text", text=json.dumps(result))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_hostinger_list_databases(args: dict) -> list[TextContent]:
+    """List databases for a website"""
+    try:
+        import hostinger_helper
+        result = await hostinger_helper.list_databases(args["domain"])
+        return [TextContent(type="text", text=json.dumps(result))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
 
 async def main():
     async with stdio_server() as (read_stream, write_stream):

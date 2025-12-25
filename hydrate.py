@@ -185,6 +185,29 @@ def save_openai_credentials():
         return { 'key_saved': True }
     return { 'key_saved': False }
 
+def load_hostinger_key():
+    """Load Hostinger API key from Secret Manager"""
+    url = f"{MCP_AGENT_BASE}/gcp/get_secret"
+    body = {'secret_name': 'projects/896380409704/secrets/hostinger-api-key'}
+    print('-> Loading Hostinger API key from Secret Manager...')
+    res = call(url, method='POST', json_body=body, allow_404=True)
+    if res and '__error' not in res:
+        return res.get('data', '')
+    return None
+
+def save_hostinger_credentials():
+    """Save Hostinger API key locally (CredentialManager)"""
+    cred_dir = os.path.expanduser('C:/Users/JARVIS/AppData/Local/InfinityXOne/CredentialManager')
+    os.makedirs(cred_dir, exist_ok=True)
+    key = load_hostinger_key()
+    if key:
+        env_path = os.path.join(cred_dir, '.env.hostinger')
+        with open(env_path, 'w', encoding='utf-8') as f:
+            f.write(f'HOSTINGER_API_KEY={key}\n')
+        print(f'  ✓ Hostinger key saved: {env_path}')
+        return { 'key_saved': True }
+    return { 'key_saved': False }
+
 def main():
     summary = {'hydration_time': datetime.utcnow().isoformat() + 'Z'}
     print('\n===== INFINITY XOS HYDRATOR START =====')
@@ -217,10 +240,10 @@ def main():
     fb_saved = save_firebase_credentials()
     summary['firebase'] = fb_saved
 
-    # STEP 7: hydrate OpenAI credentials
-    print('-> Hydrating OpenAI credentials...')
-    oa_saved = save_openai_credentials()
-    summary['openai'] = oa_saved
+    # STEP 7: hydrate Hostinger credentials
+    print('-> Hydrating Hostinger credentials...')
+    host_saved = save_hostinger_credentials()
+    summary['hostinger'] = host_saved
 
     # Build Hydration Summary
     print('\n[Hydration Summary]')

@@ -13,5 +13,4 @@ google-cloud-secret-manager
 aiohttp
 aiodns
 firebase-admin
-openai
 
