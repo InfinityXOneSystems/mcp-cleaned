@@ -3,6 +3,11 @@
     "displayName": "Trading Command Center",
     "description": "AI Trading Dashboard with Integrated Chat",
     "version": "1.0.0",
+    "publisher": "infinity-x-one",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/infinity-x-one/mcp"
+    },
     "engines": {
         "vscode": "^1.70.0"
     },
@@ -33,13 +38,15 @@
     "scripts": {
         "compile": "tsc -p ./",
         "watch": "tsc -p ./ -w",
+        "package": "npm run compile && vsce package",
         "vsce": "vsce",
         "pretest": "npm run compile",
         "test": "echo 'No tests'"
     },
     "devDependencies": {
-        "@types/vscode": "^1.70.0",
         "@types/node": "16.x",
+        "@types/vscode": "^1.70.0",
+        "@vscode/vsce": "^3.7.1",
         "typescript": "^4.7.2"
     }
 }
