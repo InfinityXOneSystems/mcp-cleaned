@@ -10,6 +10,11 @@ import subprocess
 import sys
 from datetime import datetime
 import io
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
 
 # Fix Windows console encoding
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')

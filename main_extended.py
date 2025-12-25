@@ -18,6 +18,11 @@ import asyncio
 import hashlib
 from functools import wraps
 import logging
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
 
 # ===== LOGGING & GOVERNANCE =====
 logging.basicConfig(level=logging.INFO)
