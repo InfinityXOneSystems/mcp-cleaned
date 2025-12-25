@@ -2,6 +2,69 @@
 
 This repo contains the Infinity XOS MCP server and the unified dashboards for Trading, Intelligence, and Predictions (SPA).
 
+See the quick system index: [INDEX.md](INDEX.md)
+
+## Authoritative Operation Guide (for demos and local runs)
+
+This section describes exactly how this `mcp` system operates and the locations of key artifacts.
+
+1) Services and how to run
+- Gateway (FastAPI): `api_gateway.py` — runs on port `8000` by default.
+- Dashboard API: `dashboard_api.py` — port `8001` (UI content at `/dashboard.html`).
+- Intelligence API: `intelligence_api.py` — port `8002`.
+- Local Proxy (landing pages): `local_proxy.py` — port `8080` (mirrors landing pages and proxies admin routes).
+
+Run example (PowerShell):
+```powershell
+python api_gateway.py
+python dashboard_api.py
+python intelligence_api.py
+```
+
+2) Memory systems
+- Local SQLite: `mcp_memory.db` — local intelligence & job storage (see `scripts/init_db.py` to initialize).
+- External memory services (optional): the platform can be configured to use external memory services via `SERVICES` map in `api_gateway.py`.
+
+3) Environment variables and `.env.example`
+- Place credentials and configuration in environment variables or a `.env` file. Example file: `.env.example` (below).
+
+4) Credential and account locations (local)
+- Google service account JSON: path referenced by `GOOGLE_SERVICE_ACCOUNT_JSON` env var (recommended location: `credentials/service-account.json`).
+- GitHub token: `GITHUB_TOKEN` env var.
+- OAuth tokens: `GOOGLE_OAUTH_TOKEN` env var.
+- Local secrets: `local_secrets/` (gitignored). Use this folder for local credential files used during demos.
+
+5) Admin & Doc Evolution controls
+- Admin UI: `http://localhost:8000/admin` — Infinity-Monitor.
+- Doc Evolution endpoints:
+  - `POST /admin/doc/ingest` {source, metadata}
+  - `POST /admin/doc/evolve` {doc_id, strategy}
+  - `POST /admin/doc/sync` {target}
+  - `GET /admin/doc/mode` — current mode
+  - `POST /admin/doc/mode` {mode, path_override} — set mode and optional path
+
+6) URLs and local endpoints
+- Gateway UI: `http://localhost:8000/admin`
+- Health: `http://localhost:8000/health`
+- Dashboard: `http://localhost:8001/`
+- Intelligence: `http://localhost:8002/`
+
+7) How to use the index
+- The `INDEX.md` is the single-page quick index for demos. Use it for talking points in investor demos.
+- For developer operations, consult `docs/BLUEPRINT.md` (architecture) and `docs/MANIFEST.yaml` (component list).
+
+8) Safety and best practices
+- Default: `DOC_EV_MODE` = `safe` (no external writes). Change via Admin UI only after review.
+- Use `DOC_EV_PATH_OVERRIDE` to point to external doc-evolution code if you want to test live mode — but do not enable `live` without audit.
+
+9) Contact & Handoff
+- Dev lead: see `DEVELOPER_HANDOFF.md` for contact details and deployment notes.
+
+---
+
+Below is a minimal environment sample (see `.env.example`)
+
+
 ## Quick Start
 
 **Prerequisites:** Python 3.11+, PowerShell on Windows

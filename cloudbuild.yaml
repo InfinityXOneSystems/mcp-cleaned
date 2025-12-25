@@ -1,0 +1,30 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    id: build-gateway
+    args: ['build', '-t', '${_REGION}-docker.pkg.dev/${_PROJECT}/mcp/gateway:latest', '.']
+  - name: 'gcr.io/cloud-builders/docker'
+    id: build-dashboard
+    args: ['build', '-t', '${_REGION}-docker.pkg.dev/${_PROJECT}/mcp/dashboard:latest', '.']
+  - name: 'gcr.io/cloud-builders/docker'
+    id: build-intelligence
+    args: ['build', '-t', '${_REGION}-docker.pkg.dev/${_PROJECT}/mcp/intelligence:latest', '.']
+  - name: 'gcr.io/cloud-builders/docker'
+    id: build-orchestrator
+    args: ['build', '-t', '${_REGION}-docker.pkg.dev/${_PROJECT}/mcp/orchestrator:latest', '.']
+  - name: 'gcr.io/cloud-builders/docker'
+    id: build-memory
+    args: ['build', '-t', '${_REGION}-docker.pkg.dev/${_PROJECT}/mcp/memory-gateway:latest', '.']
+  - name: 'gcr.io/cloud-builders/docker'
+    id: push-all
+    args:
+      - 'push'
+      - '${_REGION}-docker.pkg.dev/${_PROJECT}/mcp/gateway:latest'
+      - '${_REGION}-docker.pkg.dev/${_PROJECT}/mcp/dashboard:latest'
+      - '${_REGION}-docker.pkg.dev/${_PROJECT}/mcp/intelligence:latest'
+      - '${_REGION}-docker.pkg.dev/${_PROJECT}/mcp/orchestrator:latest'
+      - '${_REGION}-docker.pkg.dev/${_PROJECT}/mcp/memory-gateway:latest'
+substitutions:
+  _PROJECT: your-gcp-project
+  _REGION: us-central1
+options:
+  logging: CLOUD_LOGGING_ONLY

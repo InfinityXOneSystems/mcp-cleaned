@@ -27,6 +27,8 @@ from google_integration import (
     calendar_list_events, calendar_create_event, calendar_update_event, calendar_delete_event,
     log_prediction_to_sheet, log_crawl_to_sheet, create_event_from_prediction
 )
+from integrations.doc_evolution_integration import ingest_document, transform_document, evolve_document, sync_documents
+from scripts.doc_mode_guard import authorize, log_change
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -222,6 +224,35 @@ async def admin_status():
     """Live system status and metrics, color-coded"""
     return await compute_system_status()
 
+@app.post('/admin/doc/ingest')
+async def admin_doc_ingest(payload: Dict[str, Any]):
+    """Ingest a document into the doc evolution system. Payload: {source: str, metadata: {}}"""
+    source = payload.get('source')
+    metadata = payload.get('metadata', {})
+    if not source:
+        raise HTTPException(status_code=400, detail='source required')
+    result = ingest_document(source, metadata)
+    return JSONResponse(content={'result': result})
+
+@app.post('/admin/doc/evolve')
+async def admin_doc_evolve(payload: Dict[str, Any]):
+    """Evolve a document. Payload: {doc_id: str, strategy: {}}"""
+    doc_id = payload.get('doc_id')
+    strategy = payload.get('strategy', {})
+    if not doc_id:
+        raise HTTPException(status_code=400, detail='doc_id required')
+    result = evolve_document(doc_id, strategy)
+    return JSONResponse(content={'result': result})
+
+@app.post('/admin/doc/sync')
+async def admin_doc_sync(payload: Dict[str, Any]):
+    """Sync documents to a target. Payload: {target: str}"""
+    target = payload.get('target')
+    if not target:
+        raise HTTPException(status_code=400, detail='target required')
+    result = sync_documents(target)
+    return JSONResponse(content={'result': result})
+
 @app.get("/admin/reports")
 async def admin_reports():
     """Return recent system reports if available"""
@@ -279,6 +310,37 @@ async def admin_recommendations():
                     "details": item
                 })
     return {"recommendations": recs, "timestamp": status["timestamp"]}
+
+
+@app.get('/admin/doc/mode')
+async def admin_doc_mode_get():
+    """Get current doc evolution integration mode and file path"""
+    try:
+        from integrations.doc_evolution_integration import get_mode, get_doc_ev_file
+        return {"mode": get_mode(), "doc_ev_file": get_doc_ev_file()}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@app.post('/admin/doc/mode')
+async def admin_doc_mode_set(payload: Dict[str, Any], x_passphrase: Optional[str] = Header(default=None)):
+    """Set doc evolution integration mode. Payload: {mode: str} or {path_override: str} or both. Protected by passphrase."""
+    try:
+        from integrations.doc_evolution_integration import set_mode, set_doc_ev_path_override
+        if not authorize(x_passphrase or payload.get('passphrase', '')):
+            raise HTTPException(status_code=403, detail="invalid passphrase")
+        resp = {}
+        if 'mode' in payload:
+            resp['mode'] = set_mode(payload['mode'])
+            log_change('admin', payload['mode'], payload.get('path_override'))
+        if 'path_override' in payload:
+            resp['path'] = set_doc_ev_path_override(payload['path_override'])
+            log_change('admin', payload.get('mode', 'no-mode-change'), payload['path_override'])
+        return resp
+    except HTTPException:
+        raise
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 @app.get("/admin/endpoints")
 async def admin_endpoints():

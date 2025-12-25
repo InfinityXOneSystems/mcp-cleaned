@@ -1,0 +1,22 @@
+{
+  "gateway": {
+    "ok": false,
+    "status": null,
+    "body": "HTTPConnectionPool(host='localhost', port=8000): Max retries exceeded with url: /health (Caused by ConnectTimeoutError(<HTTPConnection(host='localhost', port=8000) at 0x229f8ee2630>, 'Connection to localhost timed out. (connect timeout=2.0)'))"
+  },
+  "dashboard": {
+    "ok": false,
+    "status": null,
+    "body": "HTTPConnectionPool(host='localhost', port=8001): Max retries exceeded with url: /health (Caused by ConnectTimeoutError(<HTTPConnection(host='localhost', port=8001) at 0x229faf324b0>, 'Connection to localhost timed out. (connect timeout=2.0)'))"
+  },
+  "intelligence": {
+    "ok": false,
+    "status": null,
+    "body": "HTTPConnectionPool(host='localhost', port=8002): Max retries exceeded with url: /health (Caused by ConnectTimeoutError(<HTTPConnection(host='localhost', port=8002) at 0x229faf32db0>, 'Connection to localhost timed out. (connect timeout=2.0)'))"
+  },
+  "admin": {
+    "ok": false,
+    "status": null,
+    "body": "HTTPConnectionPool(host='localhost', port=8000): Max retries exceeded with url: /admin (Caused by ConnectTimeoutError(<HTTPConnection(host='localhost', port=8000) at 0x229faf33590>, 'Connection to localhost timed out. (connect timeout=2.0)'))"
+  }
+}

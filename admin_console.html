@@ -136,6 +136,28 @@
                 </tbody></table></div>
               `).join('');
               document.getElementById('endpointsPanel').innerHTML = table;
+                                  <div class="card">
+                                    <div class="section-title">Doc Evolution Controls</div>
+                                    <div style="display:flex;flex-direction:column;gap:8px">
+                                      <div>
+                                        <label class="muted">Mode:</label>
+                                        <select id="docModeSelect">
+                                          <option value="safe">safe</option>
+                                          <option value="read-only">read-only</option>
+                                          <option value="live">live</option>
+                                        </select>
+                                      </div>
+                                      <div>
+                                        <label class="muted">Path Override:</label>
+                                        <input id="docPathInput" placeholder="C:\\AI\\repos\\infinity-xos\\..." style="width:100%" />
+                                      </div>
+                                      <div style="display:flex;gap:8px">
+                                        <button id="docSaveBtn">Save</button>
+                                        <button id="docRefreshBtn">Refresh</button>
+                                      </div>
+                                      <div id="docStatus" class="muted" style="font-size:12px"></div>
+                                    </div>
+                                  </div>
 
               // Intelligence top categories/subcats
               const cats = await fetchJSON(eps.services.intelligence + '/api/intelligence/categories');
@@ -254,6 +276,28 @@
               <div class="card"><div class="section-title">Vision Cortex</div><p class="muted">Multi-AI crawl, ingest, predict, strategize, validate, evolve, document (stub)</p></div>
             </div>
 
+                              // Doc evolution controls
+                              async function loadDocControls() {
+                                try {
+                                  const res = await fetch('/admin/doc/mode');
+                                  const j = await res.json();
+                                  document.getElementById('docModeSelect').value = j.mode || 'safe';
+                                  document.getElementById('docPathInput').value = j.doc_ev_file || '';
+                                  document.getElementById('docStatus').textContent = `Mode: ${j.mode} File: ${j.doc_ev_file || 'none'}`;
+                                } catch (e) { document.getElementById('docStatus').textContent = 'Failed to load doc controls'; }
+                              }
+                              document.getElementById('docSaveBtn').addEventListener('click', async () => {
+                                const mode = document.getElementById('docModeSelect').value;
+                                const path = document.getElementById('docPathInput').value;
+                                const payload = { mode: mode };
+                                if (path) payload.path_override = path;
+                                const res = await fetch('/admin/doc/mode', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                                const j = await res.json();
+                                document.getElementById('docStatus').textContent = JSON.stringify(j);
+                              });
+                              document.getElementById('docRefreshBtn').addEventListener('click', loadDocControls);
+                              // Load initial doc controls after DOM
+                              window.addEventListener('load', loadDocControls);
             <!-- Auto-Builder Panel (stub) -->
             <div id="BuilderPanel" class="panel" style="display:none">
               <div class="card"><div class="section-title">Auto-Builder</div><p class="muted">Multi-agent frontend/backend system builder (stub)</p></div>
