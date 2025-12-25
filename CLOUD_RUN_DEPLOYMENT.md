@@ -65,6 +65,8 @@ Cloud Run: omni-gateway (single service)
 └── MCP Server (main_extended.py) - Imported
 
 All services merged into single process for Cloud Run efficiency.
+
+Note: "omni-gateway" is used here as the public service name and image tag; the repository and internal code paths retain the `mcp` naming for backward compatibility.
 ```
 
 ### Cost Optimization

@@ -159,6 +159,8 @@ code --install-extension infinity-dashboard-0.0.1.vsix
 │  /predict /crawl /simulate                     │
 │  /sheets/* /calendar/*                         │
 │  /admin/status /admin/endpoints /admin/chat    │
+│                                               │
+│  Note: "Omni-Gateway" is the public display name for the underlying MCP gateway service (code paths remain under `mcp`).
 └─┬──────┬──────┬──────┬──────┬──────┬──────────┘
   │      │      │      │      │      │
   ▼      ▼      ▼      ▼      ▼      ▼

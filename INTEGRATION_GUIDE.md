@@ -13,7 +13,7 @@ All components deployed and tested. Ready for Google Sheets/Calendar integration
 └──────────────────┬──────────────────────────────────┘
                    │
 ┌──────────────────▼──────────────────────────────────┐
-│           Omni-Gateway (Port 8000)                   │
+│           Omni-Gateway (Port 8000) - display name for the MCP gateway │
 │  /predict /crawl /simulate /sheets /calendar        │
 │  /admin/status /admin/endpoints /admin/chat         │
 └───┬──────┬──────┬──────┬──────┬──────┬─────────────┘

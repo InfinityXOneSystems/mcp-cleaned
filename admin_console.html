@@ -28,7 +28,7 @@
 <body>
   <div class="page">
     <div class="header">
-      <div class="title">Infinity Admin Console</div>
+      <div id="brandTitle" class="title">Infinity Admin Console</div>
       <div class="controls">
         <select id="complianceLevel">
           <option value="strict">Compliance: Strict</option>
@@ -174,7 +174,22 @@
               document.getElementById('chatInput').value = '';
               box.scrollTop = box.scrollHeight;
             }
-            window.addEventListener('DOMContentLoaded', () => { refreshAll(); setInterval(refreshAll, 8000); switchTab('Monitor'); });
+            async function loadBranding() {
+              try {
+                const res = await fetch('/static/config/branding.json');
+                const b = await res.json();
+                const name = b.display_name || b.name || 'Infinity';
+                document.title = name + ' Admin Console';
+                const el = document.getElementById('brandTitle');
+                if (el) el.textContent = name + ' Admin Console';
+                // also update small header inside the monitor view
+                const headerTitle = document.querySelector('header .title');
+                if (headerTitle) headerTitle.textContent = name + '-Monitor';
+              } catch (e) {
+                console.warn('Branding load failed', e);
+              }
+            }
+            window.addEventListener('DOMContentLoaded', () => { loadBranding(); refreshAll(); setInterval(refreshAll, 8000); switchTab('Monitor'); });
           </script>
         </head>
         <body>

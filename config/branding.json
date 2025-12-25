@@ -1,0 +1,9 @@
+{
+    "name": "Omni-Gateway",
+    "display_name": "Omni-Gateway",
+    "primary_url": "https://frontend-service-0a277877-896380409704.us-east1.run.app",
+    "landing_domains": [
+        "infinityxonesystems.com",
+        "infinityxai.com"
+    ]
+}
