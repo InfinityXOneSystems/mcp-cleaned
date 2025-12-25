@@ -233,8 +233,8 @@ async def github_sync(request: Request):
         raise HTTPException(status_code=400, detail="Missing GitHub token in body.token")
     headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github+json"}
     async with httpx.AsyncClient(timeout=30.0) as client:
-        r = await client.get('https://api.github.com/user/repos', headers=headers)
-        try:
+        r = await client.request(method, url, headers=safe_headers, json=data)
+        return JSONResponse({"status_code": r.status_code, "headers": dict(r.headers), "body": r.json() if r.headers.get("content-type", "").startswith("application/json") else r.text})
             r.raise_for_status()
         except httpx.HTTPStatusError:
             raise HTTPException(status_code=r.status_code, detail=r.text)

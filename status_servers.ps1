@@ -13,11 +13,13 @@ function Show-Status($name, $port) {
     $pidFile = Join-Path $PWD ("logs/" + $name + ".pid")
     $outLog = Join-Path $PWD ("logs/" + $name + ".out.log")
     $errLog = Join-Path $PWD ("logs/" + $name + ".err.log")
-    $pid = (Test-Path $pidFile) ? (Get-Content $pidFile | Select-Object -First 1) : $null
+    $procId = $null
+    if (Test-Path $pidFile) { $procId = Get-Content $pidFile | Select-Object -First 1 }
     $procAlive = $false
-    if ($pid) { $procAlive = (Get-Process -Id $pid -ErrorAction SilentlyContinue) -ne $null }
+    if ($procId) { $procAlive = (Get-Process -Id $procId -ErrorAction SilentlyContinue) -ne $null }
     $portAlive = (Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue) -ne $null
-    Write-Host ("{0} — PID:{1} Proc:{2} Port:{3}" -f $name, ($pid ?? '-'), ($procAlive ? 'UP' : 'DOWN'), ($portAlive ? 'UP' : 'DOWN'))
+    $pidDisp = $procId; if (-not $pidDisp) { $pidDisp = '-' }
+    Write-Host ("{0} - PID:{1} Proc:{2} Port:{3}" -f $name, $pidDisp, ($(if($procAlive){'UP'}else{'DOWN'})), ($(if($portAlive){'UP'}else{'DOWN'})))
     if (Test-Path $outLog) { Write-Host "  OUT:"; Get-Content $outLog -Tail $TailLines }
     if (Test-Path $errLog) { Write-Host "  ERR:"; Get-Content $errLog -Tail $TailLines }
 }
