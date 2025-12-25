@@ -66,6 +66,9 @@ GOVERNANCE_RULES = {
     # Docker APIs
     "docker_run": (GovernanceLevel.HIGH, "Executes containers"),
     
+    # ChatGPT MCP
+    "chatgpt_auto_builder_execute": (GovernanceLevel.MEDIUM, "External AI call"),
+
     # Default
     "default": (GovernanceLevel.MEDIUM, "Standard operation")
 }
@@ -879,6 +882,18 @@ TOOLS = [
             },
             "required": ["video_uri"]
         }
+    ),
+    Tool(
+        name="chatgpt_auto_builder_execute",
+        description="Execute a command through ChatGPT Auto Builder MCP tool",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "command": {"type": "string", "description": "Command to execute in Auto Builder"},
+                "payload": {"type": "object", "description": "Optional payload/context for the command"}
+            },
+            "required": ["command"]
+        }
     )
 ]
 
@@ -1021,6 +1036,8 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     # ===== GOOGLE VIDEO =====
     elif name == "google_video_analyze":
         return await tool_google_video_analyze(arguments)
+    elif name == "chatgpt_auto_builder_execute":
+        return await tool_chatgpt_auto_builder_execute(arguments)
     else:
         raise ValueError(f"Unknown tool: {name}")
 
@@ -1074,6 +1091,45 @@ async def tool_execute(args: dict) -> list[TextContent]:
         )
         r.raise_for_status()
         return [TextContent(type="text", text=json.dumps(r.json()))]
+
+async def tool_chatgpt_auto_builder_execute(args: dict) -> list[TextContent]:
+    """Execute command through ChatGPT Auto Builder MCP tool"""
+    endpoint = os.getenv("CHATGPT_MCP_ENDPOINT")
+    if not endpoint:
+        return [TextContent(type="text", text=json.dumps({
+            "error": "CHATGPT_MCP_ENDPOINT not configured",
+            "setup_guide": "See CHATGPT_MCP_INTEGRATION_GUIDE.md"
+        }))]
+
+    command = args.get("command", "")
+    payload = args.get("payload", {})
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                f"{endpoint}/execute",
+                json={"command": command, "context": payload},
+                headers={"Content-Type": "application/json"}
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                logger.info(f"ChatGPT Auto Builder executed: {command}")
+                return [TextContent(type="text", text=json.dumps({
+                    "status": "success",
+                    "result": data,
+                    "command": command
+                }))]
+            else:
+                return [TextContent(type="text", text=json.dumps({
+                    "error": f"HTTP {resp.status_code}",
+                    "command": command
+                }))]
+    except Exception as e:
+        logger.error(f"ChatGPT Auto Builder error: {e}")
+        return [TextContent(type="text", text=json.dumps({
+            "error": str(e),
+            "command": command
+        }))]
 
 async def tool_github_create_issue(args: dict) -> list[TextContent]:
     """Create a GitHub issue"""
