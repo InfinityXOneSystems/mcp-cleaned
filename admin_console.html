@@ -34,71 +34,273 @@
           <option value="strict">Compliance: Strict</option>
           <option value="minimal">Compliance: Minimal</option>
           <option value="off">Compliance: Off</option>
-        </select>
-        <button onclick="applyCompliance()">Apply</button>
-        <button onclick="refreshStatus()">Refresh</button>
-      </div>
-    </div>
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Infinity-Monitor</title>
+          <style>
+            body { font-family: Arial, sans-serif; background: #0b0b0b; color: #eaeaea; margin: 0; }
+            header { background: #111; padding: 16px 24px; border-bottom: 1px solid #222; display: flex; align-items: center; justify-content: space-between; }
+            .title { font-size: 20px; font-weight: bold; }
+            .container { padding: 20px; }
+            .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+            .card { background: #121212; border: 1px solid #222; border-radius: 10px; padding: 14px; }
+            .badge { display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 12px; }
+            .green { background: #163a17; color: #7dff89; border: 1px solid #276c29; }
+            .yellow { background: #3a3716; color: #ffe27d; border: 1px solid #6c6a27; }
+            .red { background: #3a1616; color: #ff7d7d; border: 1px solid #6c2727; }
+            .section-title { font-size: 14px; margin-bottom: 10px; color: #bdbdbd; }
+            .row { display: flex; gap: 16px; }
+            .flex { display: flex; }
+            .flex-col { display: flex; flex-direction: column; }
+            .pill { padding: 6px 10px; border-radius: 999px; background: #1b1b1b; border: 1px solid #2a2a2a; }
+            .muted { color: #9e9e9e; font-size: 12px; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border-bottom: 1px solid #222; padding: 8px; text-align: left; font-size: 13px; }
+            th { color: #cfcfcf; }
+            a { color: #82b1ff; text-decoration: none; }
+            a:hover { text-decoration: underline; }
+            .controls { display: flex; gap: 12px; align-items: center; }
+            select, button, input { background: #1a1a1a; color: #eaeaea; border: 1px solid #333; border-radius: 6px; padding: 6px 10px; }
+            .small { font-size: 12px; }
+            .tabs { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+            .tab { padding: 8px 12px; border-radius: 6px; background: #1b1b1b; border: 1px solid #2a2a2a; cursor: pointer; }
+            .tab.active { background: #242424; border-color: #3a3a3a; }
+            .panel { margin-top: 16px; }
+            .chat-box { height: 220px; overflow-y: auto; border: 1px solid #222; border-radius: 8px; padding: 8px; background: #0f0f0f; }
+            .chat-row { margin-bottom: 8px; }
+            .chat-user { color: #82b1ff; }
+            .chat-assistant { color: #7dff89; }
+          </style>
+          <script>
+            async function fetchJSON(url, opts) { const res = await fetch(url, opts); return await res.json(); }
+            function badge(color, text) { return `<span class="badge ${color}">${text}</span>` }
+            function renderCategory(elId, payload) {
+              const el = document.getElementById(elId);
+              const items = payload.items || [];
+              el.innerHTML = items.map(i => `
+                <div class="row" style="justify-content: space-between">
+                  <div>
+                    <div><strong>${i.name}</strong> <span class="muted">(${i.service})</span></div>
+                    <div class="muted">latency ${i.metrics.latency_ms}ms</div>
+                  </div>
+                  <div>${badge(i.color, i.color.toUpperCase())}</div>
+                </div>
+              `).join('');
+            }
+            async function refreshAll() {
+              const status = await fetchJSON('/admin/status');
+              renderCategory('coreStatus', status.categories.Core);
+              renderCategory('apiStatus', status.categories.APIs);
+              const m = status.matrix || {};
+              document.getElementById('matrix').innerHTML = Object.keys(m).map(k => {
+                const v = m[k]; const c = v.reachable ? 'green' : 'red';
+                return `<div class="row" style="justify-content: space-between"><div>${k}</div><div>${badge(c, c.toUpperCase())}</div></div>`;
+              }).join('');
 
-    <div id="status"></div>
-    <div class="section-title">Recommendations</div>
-    <div id="recs"></div>
-  </div>
+              const recs = await fetchJSON('/admin/recommendations');
+              document.getElementById('recommendations').innerHTML = (recs.recommendations || []).map(r => `
+                <div class="row" style="justify-content: space-between">
+                  <div>
+                    <div><strong>${r.area}</strong> <span class="muted">${r.severity}</span></div>
+                    <div class="muted">${r.action}</div>
+                  </div>
+                  <div>${badge(r.details.color, r.details.color.toUpperCase())}</div>
+                </div>
+              `).join('');
 
-  <script>
-    async function refreshStatus() {
-      const res = await fetch('/admin/status');
-      const data = await res.json();
-      const container = document.getElementById('status');
-      container.innerHTML = '';
+              const settings = await fetchJSON('/admin/settings');
+              document.getElementById('settings').innerHTML = `
+                <div>Compliance: <span class="pill">${(settings.compliance.level || 'strict')}</span></div>
+                <div>Gateway Port: <span class="pill">${settings.gateway_port}</span></div>
+              `;
 
-      const grid = document.createElement('div');
-      grid.className = 'grid';
+              const reports = await fetchJSON('/admin/reports');
+              document.getElementById('reports').innerHTML = `
+                <table>
+                  <thead><tr><th>Name</th><th>Path</th></tr></thead>
+                  <tbody>
+                    ${(reports.reports || []).map(r => `<tr><td>${r.name}</td><td><a href="/${r.path}" target="_blank">${r.path}</a></td></tr>`).join('')}
+                  </tbody>
+                </table>
+              `;
 
-      for (const [cat, payload] of Object.entries(data.categories)) {
-        const card = document.createElement('div');
-        card.className = 'card';
-        const title = document.createElement('div');
-        title.className = 'title';
-        title.textContent = `${cat} — Quality ${payload.quality}`;
-        card.appendChild(title);
-        payload.items.forEach(item => {
-          const row = document.createElement('div');
-          row.className = 'item';
-          const left = document.createElement('div'); left.className = 'name'; left.textContent = item.name;
-          const right = document.createElement('div'); right.className = 'badge ' + item.color; right.textContent = item.color.toUpperCase();
-          row.appendChild(left); row.appendChild(right);
-          card.appendChild(row);
-        });
-        grid.appendChild(card);
-      }
-      container.appendChild(grid);
+              // Endpoints inventory
+              const eps = await fetchJSON('/admin/endpoints');
+              const table = Object.entries(eps.endpoints || {}).map(([group, arr]) => `
+                <div class="card"><div class="section-title">${group}</div>
+                <table><thead><tr><th>Service</th><th>Path</th></tr></thead><tbody>
+                ${arr.map(e => `<tr><td>${e.service}</td><td>${e.path}</td></tr>`).join('')}
+                </tbody></table></div>
+              `).join('');
+              document.getElementById('endpointsPanel').innerHTML = table;
 
-      // Load recs
-      const recRes = await fetch('/admin/recommendations');
-      const recData = await recRes.json();
-      const recBox = document.getElementById('recs');
-      recBox.innerHTML = '';
-      recData.recommendations.forEach(r => {
-        const div = document.createElement('div');
-        div.className = 'rec';
-        div.textContent = `${r.severity.toUpperCase()}: ${r.area} — ${r.action}`;
-        recBox.appendChild(div);
-      });
-    }
+              // Intelligence top categories/subcats
+              const cats = await fetchJSON(eps.services.intelligence + '/api/intelligence/categories');
+              const topCats = Object.entries(cats).sort((a,b)=>Object.values(b[1]).reduce((x,y)=>x+y,0)-Object.values(a[1]).reduce((x,y)=>x+y,0)).slice(0,10);
+              document.getElementById('intelligencePanel').innerHTML = topCats.map(([cat, subs]) => {
+                const topSubs = Object.entries(subs).sort((a,b)=>b[1]-a[1]).slice(0,10);
+                return `<div class="card"><div class="section-title">${cat}</div>
+                  <table><thead><tr><th>Subcategory</th><th>Count</th></tr></thead><tbody>
+                  ${topSubs.map(([s,c])=>`<tr><td>${s}</td><td>${c}</td></tr>`).join('')}
+                  </tbody></table></div>`;
+              }).join('');
+            }
+            async function applyCompliance() {
+              const level = document.getElementById('complianceSelect').value;
+              await fetchJSON(`/admin/settings/compliance?level=${encodeURIComponent(level)}`, { method: 'POST' });
+              refreshAll();
+            }
+            function switchTab(id) {
+              document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+              document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
+              document.getElementById(id+'Tab').classList.add('active');
+              document.getElementById(id+'Panel').style.display = 'block';
+            }
+            const chatHistory = [];
+            async function sendChat() {
+              const provider = document.getElementById('chatProvider').value;
+              const model = document.getElementById('chatModel').value;
+              const message = document.getElementById('chatInput').value;
+              if (!message) return;
+              chatHistory.push({ role: 'user', content: message });
+              const res = await fetchJSON('/admin/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider, model, message, history: chatHistory }) });
+              chatHistory.push({ role: 'assistant', content: res.reply || JSON.stringify(res) });
+              // Render
+              const box = document.getElementById('chatBox');
+              box.innerHTML = chatHistory.map(m => `<div class='chat-row ${m.role === 'user' ? 'chat-user' : 'chat-assistant'}'>${m.content}</div>`).join('');
+              document.getElementById('chatInput').value = '';
+              box.scrollTop = box.scrollHeight;
+            }
+            window.addEventListener('DOMContentLoaded', () => { refreshAll(); setInterval(refreshAll, 8000); switchTab('Monitor'); });
+          </script>
+        </head>
+        <body>
+          <header>
+            <div class="title">Infinity-Monitor</div>
+            <div class="controls">
+              <label class="small">Compliance:</label>
+              <select id="complianceSelect">
+                <option value="strict">strict</option>
+                <option value="minimal">minimal</option>
+                <option value="off">off</option>
+              </select>
+              <button onclick="applyCompliance()">Apply</button>
+              <button onclick="refreshAll()">Refresh</button>
+            </div>
+          </header>
+          <div class="container">
+            <div class="tabs">
+              <div id="IndexTab" class="tab" onclick="switchTab('Index')">Index</div>
+              <div id="GatewayTab" class="tab" onclick="switchTab('Gateway')">Omni-Gateway</div>
+              <div id="IntelligenceTab" class="tab" onclick="switchTab('Intelligence')">Infinity-Intelligence</div>
+              <div id="VisionTab" class="tab" onclick="switchTab('Vision')">Vision Cortex</div>
+              <div id="BuilderTab" class="tab" onclick="switchTab('Builder')">Auto-Builder</div>
+              <div id="TaxonomyTab" class="tab" onclick="switchTab('Taxonomy')">Infinity Taxonomy</div>
+              <div id="MonitorTab" class="tab active" onclick="switchTab('Monitor')">Infinity Monitor</div>
+              <div id="FrontEndTab" class="tab" onclick="switchTab('FrontEnd')">Infinity Front end</div>
+              <div id="EndpointsTab" class="tab" onclick="switchTab('Endpoints')">Endpoints</div>
+              <div id="PerformanceTab" class="tab" onclick="switchTab('Performance')">Performance</div>
+              <div id="ChatTab" class="tab" onclick="switchTab('Chat')">Chat</div>
+            </div>
 
-    async function applyCompliance() {
-      const level = document.getElementById('complianceLevel').value;
-      const res = await fetch(`/admin/settings/compliance?level=${encodeURIComponent(level)}`, { method: 'POST' });
-      if (res.ok) {
-        alert('Compliance level updated to ' + level);
-      } else {
-        alert('Failed to update compliance');
-      }
-    }
+            <!-- Monitor Panel -->
+            <div id="MonitorPanel" class="panel" style="display:block">
+              <div class="grid">
+                <div class="card"><div class="section-title">Core Status</div><div id="coreStatus"></div></div>
+                <div class="card"><div class="section-title">APIs Status</div><div id="apiStatus"></div></div>
+                <div class="card"><div class="section-title">Recommendations</div><div id="recommendations"></div></div>
+              </div>
+              <div class="grid" style="margin-top:16px">
+                <div class="card"><div class="section-title">Reports</div><div id="reports"></div></div>
+                <div class="card"><div class="section-title">Settings</div><div id="settings"></div></div>
+                <div class="card"><div class="section-title">Connection Matrix</div><div id="matrix"></div></div>
+              </div>
+            </div>
 
-    refreshStatus();
-    setInterval(refreshStatus, 8000);
-  </script>
-</body>
-</html>
+            <!-- Gateway Panel -->
+            <div id="GatewayPanel" class="panel" style="display:none">
+              <div class="card">
+                <div class="section-title">Omni-Gateway Overview</div>
+                <p class="muted">Unified endpoints: /predict, /crawl, /simulate, /read, /write, /analyze</p>
+              </div>
+            </div>
+
+            <!-- Intelligence Panel -->
+            <div id="IntelligencePanel" class="panel" style="display:none">
+              <div class="section-title">Top Industries and Sub-Industries</div>
+              <div id="intelligencePanel" class="grid"></div>
+            </div>
+
+            <!-- Vision Cortex Panel (stub) -->
+            <div id="VisionPanel" class="panel" style="display:none">
+              <div class="card"><div class="section-title">Vision Cortex</div><p class="muted">Multi-AI crawl, ingest, predict, strategize, validate, evolve, document (stub)</p></div>
+            </div>
+
+            <!-- Auto-Builder Panel (stub) -->
+            <div id="BuilderPanel" class="panel" style="display:none">
+              <div class="card"><div class="section-title">Auto-Builder</div><p class="muted">Multi-agent frontend/backend system builder (stub)</p></div>
+            </div>
+
+            <!-- Taxonomy Panel (stub) -->
+            <div id="TaxonomyPanel" class="panel" style="display:none">
+              <div class="card"><div class="section-title">Infinity Taxonomy</div><p class="muted">Unified taxonomy management (stub)</p></div>
+            </div>
+
+            <!-- Front-End Panel -->
+            <div id="FrontEndPanel" class="panel" style="display:none">
+              <div class="card"><div class="section-title">UI Assets</div>
+                <ul>
+                  <li><a href="/dashboard.html" target="_blank">dashboard.html</a></li>
+                  <li><a href="/command_center.html" target="_blank">command_center.html</a></li>
+                  <li><a href="/admin_console.html" target="_blank">admin_console.html</a></li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Endpoints Panel -->
+            <div id="EndpointsPanel" class="panel" style="display:none">
+              <div id="endpointsPanel" class="grid"></div>
+            </div>
+
+            <!-- Performance Panel -->
+            <div id="PerformancePanel" class="panel" style="display:none">
+              <div class="card"><div class="section-title">Performance Monitor</div>
+                <p class="muted">Monitoring latency, uptime, error rate (from /admin/status).</p>
+                <div id="performancePanel"></div>
+              </div>
+            </div>
+
+            <!-- Chat Panel -->
+            <div id="ChatPanel" class="panel" style="display:none">
+              <div class="grid">
+                <div class="card">
+                  <div class="section-title">Chat</div>
+                  <div class="row" style="align-items:center; gap:8px; margin-bottom:8px">
+                    <label>Provider</label>
+                    <select id="chatProvider">
+                      <option value="copilot_vscode">VS Code Copilot</option>
+                      <option value="chatgpt">ChatGPT (Custom GPT)</option>
+                      <option value="copilot_github">GitHub Copilot (Remote)</option>
+                    </select>
+                    <label>Model</label>
+                    <select id="chatModel">
+                      <option value="gpt-4o">gpt-4o</option>
+                      <option value="gpt-4.1">gpt-4.1</option>
+                      <option value="claude-3.5">claude-3.5</option>
+                    </select>
+                  </div>
+                  <div id="chatBox" class="chat-box"></div>
+                  <div class="row" style="margin-top:8px">
+                    <input id="chatInput" placeholder="Type a message..." style="flex:1" />
+                    <button onclick="sendChat()">Send</button>
+                  </div>
+                  <p class="muted" style="margin-top:8px">Note: Providers other than ChatGPT are stubs pending integration.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>

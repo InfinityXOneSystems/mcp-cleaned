@@ -17,10 +17,16 @@ from datetime import datetime
 from typing import Dict, Any, Optional, List
 import logging
 from enum import Enum
+import asyncio
 
 from compliance import compliance_validator, validate_request_middleware, get_compliance_status
 from prediction_engine import log_prediction
 from crawler import crawl
+from google_integration import (
+    sheets_append_rows, sheets_read_range, sheets_update_range, sheets_clear_range,
+    calendar_list_events, calendar_create_event, calendar_update_event, calendar_delete_event,
+    log_prediction_to_sheet, log_crawl_to_sheet, create_event_from_prediction
+)
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -139,6 +145,17 @@ async def compute_system_status() -> dict:
             "quality": quality,
             "items": items
         }
+    # Build simple connection matrix (service -> reachable)
+    matrix = {}
+    async with httpx.AsyncClient(timeout=3) as client:
+        for name, base in SERVICES.items():
+            try:
+                probe = "/health" if name in ("intelligence", "meta") else ("/api/portfolio" if name == "dashboard" else "/health")
+                r = await client.get(f"{base}{probe}")
+                matrix[name] = {"reachable": r.status_code == 200, "endpoint": f"{base}{probe}"}
+            except Exception as e:
+                matrix[name] = {"reachable": False, "error": str(e)}
+    status["matrix"] = matrix
     return status
 
 class OperationType(Enum):
@@ -188,7 +205,14 @@ async def compliance_audit_log(limit: int = 100):
 async def admin_console_page():
     """Serve Admin Console UI"""
     try:
-        with open("admin_console.html", "r", encoding="utf-8") as f:
+        # Check if user wants command_center or admin_console
+        dashboard_choice = os.environ.get("PRIMARY_DASHBOARD", "command_center")
+        filename = f"{dashboard_choice}.html"
+        
+        if not os.path.exists(filename):
+            filename = "admin_console.html"  # fallback
+        
+        with open(filename, "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
     except Exception:
         return HTMLResponse(content="<h1>Admin Console</h1><p>UI file missing.</p>")
@@ -255,6 +279,97 @@ async def admin_recommendations():
                     "details": item
                 })
     return {"recommendations": recs, "timestamp": status["timestamp"]}
+
+@app.get("/admin/endpoints")
+async def admin_endpoints():
+    """Enumerate key endpoints across systems for Infinity-Monitor"""
+    endpoints = {
+        "Index": [
+            {"path": "/", "service": "gateway"},
+            {"path": "/health", "service": "gateway"},
+        ],
+        "Omni-Gateway": [
+            {"path": "/predict", "service": "gateway"},
+            {"path": "/crawl", "service": "gateway"},
+            {"path": "/simulate", "service": "gateway"},
+            {"path": "/read/{resource}", "service": "gateway"},
+            {"path": "/write/{resource}", "service": "gateway"},
+            {"path": "/analyze/{resource}", "service": "gateway"},
+            {"path": "/admin/status", "service": "gateway"},
+            {"path": "/admin/endpoints", "service": "gateway"},
+            {"path": "/admin/reports", "service": "gateway"},
+            {"path": "/admin/settings", "service": "gateway"},
+        ],
+        "Infinity-Intelligence": [
+            {"path": "/health", "service": "intelligence"},
+            {"path": "/api/intelligence/categories", "service": "intelligence"},
+            {"path": "/api/intelligence/sources", "service": "intelligence"},
+            {"path": "/api/predict", "service": "intelligence"},
+            {"path": "/api/crawl", "service": "intelligence"},
+            {"path": "/api/simulate", "service": "intelligence"},
+        ],
+        "Vision Cortex": [
+            {"path": "/vision/ingest", "service": "gateway", "stub": True},
+            {"path": "/vision/predict", "service": "gateway", "stub": True},
+            {"path": "/vision/strategize", "service": "gateway", "stub": True},
+        ],
+        "Auto-Builder": [
+            {"path": "/autobuilder/start", "service": "gateway", "stub": True},
+            {"path": "/autobuilder/status", "service": "gateway", "stub": True},
+        ],
+        "Infinity Taxonomy": [
+            {"path": "/taxonomy/list", "service": "gateway", "stub": True},
+            {"path": "/taxonomy/update", "service": "gateway", "stub": True},
+        ],
+        "Infinity Monitor": [
+            {"path": "/admin", "service": "gateway"},
+            {"path": "/admin/status", "service": "gateway"},
+            {"path": "/admin/endpoints", "service": "gateway"},
+            {"path": "/admin/recommendations", "service": "gateway"},
+        ],
+        "Infinity Front end": [
+            {"path": "/dashboard.html", "service": "gateway", "file": True},
+            {"path": "/command_center.html", "service": "gateway", "file": True},
+            {"path": "/admin_console.html", "service": "gateway", "file": True},
+        ],
+    }
+    return {"endpoints": endpoints, "services": SERVICES}
+
+@app.post("/admin/chat")
+async def admin_chat(payload: Dict[str, Any]):
+    """Chat stub endpoint supporting provider selection and model hints.
+    Providers: copilot_vscode, copilot_github, chatgpt
+    """
+    provider = payload.get("provider", "chatgpt")
+    model = payload.get("model", "gpt-4o")
+    message = payload.get("message", "")
+    history = payload.get("history", [])
+
+    if not message:
+        return JSONResponse(status_code=400, content={"error": "Missing message"})
+
+    if provider in ("copilot_vscode", "copilot_github"):
+        # No direct public chat API; return informative stub
+        return {
+            "provider": provider,
+            "model": model,
+            "reply": f"{provider} chat is not directly available via gateway. Configure integration to enable.",
+            "echo": message,
+            "history": history,
+            "status": "stub"
+        }
+
+    if provider == "chatgpt":
+        # Stubbed local echo; integrate OpenAI if configured later
+        return {
+            "provider": provider,
+            "model": model,
+            "reply": f"[stub:{model}] {message}",
+            "history": history + [{"role": "user", "content": message}],
+            "status": "ok"
+        }
+
+    return JSONResponse(status_code=400, content={"error": "Unknown provider"})
 
 # ===== UNIFIED /predict ENDPOINT =====
 
@@ -638,6 +753,123 @@ async def proxy_analyze(resource: str, request: Request):
                 headers={"Authorization": request.headers.get("Authorization", "")}
             )
             return response.json()
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+# ===== GOOGLE SHEETS ENDPOINTS =====
+
+@app.post("/sheets/append")
+async def sheets_append(sheet_id: str, range_name: str, values: List[List[Any]]):
+    """Append rows to Google Sheet"""
+    try:
+        result = sheets_append_rows(sheet_id, range_name, values)
+        return result
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.get("/sheets/read")
+async def sheets_read(sheet_id: str, range_name: str):
+    """Read range from Google Sheet"""
+    try:
+        result = sheets_read_range(sheet_id, range_name)
+        return result
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.post("/sheets/update")
+async def sheets_update(sheet_id: str, range_name: str, values: List[List[Any]]):
+    """Update range in Google Sheet"""
+    try:
+        result = sheets_update_range(sheet_id, range_name, values)
+        return result
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.post("/sheets/clear")
+async def sheets_clear(sheet_id: str, range_name: str):
+    """Clear range in Google Sheet"""
+    try:
+        result = sheets_clear_range(sheet_id, range_name)
+        return result
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.post("/sheets/log_prediction")
+async def sheets_log_pred(sheet_id: str, prediction_data: Dict[str, Any]):
+    """Log prediction to Google Sheet"""
+    try:
+        result = log_prediction_to_sheet(sheet_id, prediction_data)
+        return result
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.post("/sheets/log_crawl")
+async def sheets_log_cr(sheet_id: str, crawl_data: Dict[str, Any]):
+    """Log crawl to Google Sheet"""
+    try:
+        result = log_crawl_to_sheet(sheet_id, crawl_data)
+        return result
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+# ===== GOOGLE CALENDAR ENDPOINTS =====
+
+@app.get("/calendar/events")
+async def calendar_events(calendar_id: str = "primary", max_results: int = 10, time_min: Optional[str] = None):
+    """List calendar events"""
+    try:
+        result = calendar_list_events(calendar_id, max_results, time_min)
+        return result
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.post("/calendar/create")
+async def calendar_create(
+    calendar_id: str,
+    summary: str,
+    start_time: str,
+    end_time: str,
+    description: Optional[str] = None,
+    location: Optional[str] = None
+):
+    """Create calendar event"""
+    try:
+        result = calendar_create_event(calendar_id, summary, start_time, end_time, description, location)
+        return result
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.post("/calendar/update")
+async def calendar_update(
+    calendar_id: str,
+    event_id: str,
+    summary: Optional[str] = None,
+    start_time: Optional[str] = None,
+    end_time: Optional[str] = None,
+    description: Optional[str] = None
+):
+    """Update calendar event"""
+    try:
+        result = calendar_update_event(calendar_id, event_id, summary, start_time, end_time, description)
+        return result
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.post("/calendar/delete")
+async def calendar_del(calendar_id: str, event_id: str):
+    """Delete calendar event"""
+    try:
+        result = calendar_delete_event(calendar_id, event_id)
+        return result
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.post("/calendar/from_prediction")
+async def calendar_from_pred(calendar_id: str, prediction_data: Dict[str, Any]):
+    """Create calendar event from prediction"""
+    try:
+        result = create_event_from_prediction(calendar_id, prediction_data)
+        return result
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 

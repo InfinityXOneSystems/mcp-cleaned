@@ -233,8 +233,8 @@ async def github_sync(request: Request):
         raise HTTPException(status_code=400, detail="Missing GitHub token in body.token")
     headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github+json"}
     async with httpx.AsyncClient(timeout=30.0) as client:
-        r = await client.request(method, url, headers=safe_headers, json=data)
-        return JSONResponse({"status_code": r.status_code, "headers": dict(r.headers), "body": r.json() if r.headers.get("content-type", "").startswith("application/json") else r.text})
+        r = await client.get('https://api.github.com/user/repos', headers=headers)
+        try:
             r.raise_for_status()
         except httpx.HTTPStatusError:
             raise HTTPException(status_code=r.status_code, detail=r.text)
@@ -525,7 +525,7 @@ async def proxy(request: Request):
     safe_headers = sanitize_headers(headers or {})
     async with httpx.AsyncClient(timeout=60.0) as client:
         r = await client.request(method, url, headers=safe_headers, json=data)
-        return JSONResponse({"status_code": r.status_code, "headers": dict(r.headers), "body": r.json() if r.headers.get("content-type",""").startswith("application/json") else r.text})
+        return JSONResponse({"status_code": r.status_code, "headers": dict(r.headers), "body": r.json() if r.headers.get("content-type", "").startswith("application/json") else r.text})
 
 
 @app.post("/scrape")
@@ -779,4 +779,4 @@ async def analyze_endpoint(resource: str, payload: dict):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8003)))
