@@ -3294,16 +3294,39 @@ async def tool_vscode_search_workspace(args: dict) -> list[TextContent]:
     """Search text across VS Code workspace"""
     try:
         query = args["query"]
-        # Use grep or ripgrep for search
-        cmd = f'rg -i "{query}" . || grep -ri "{query}" .'
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-        
-        matches = result.stdout.split('\n')[:50]  # Limit to 50 matches
-        
+        root = args.get("root", ".")
+        max_results = int(args.get("limit", 50))
+
+        qlower = str(query).lower()
+        results: list[str] = []
+
+        # Walk the workspace safely without shell execution; skip heavy dirs
+        skip_dirs = {".git", "node_modules", "__pycache__", ".venv", "dist", "build"}
+
+        for dirpath, dirnames, filenames in os.walk(root):
+            # Prune directories in-place to avoid walking skipped paths
+            dirnames[:] = [d for d in dirnames if d not in skip_dirs]
+
+            for fname in filenames:
+                path = os.path.join(dirpath, fname)
+                # Best-effort text read; ignore binary/permission issues
+                try:
+                    with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                        for lineno, line in enumerate(f, start=1):
+                            if qlower in line.lower():
+                                results.append(f"{path}:{lineno}:{line.strip()}")
+                                if len(results) >= max_results:
+                                    break
+                except (IsADirectoryError, PermissionError, OSError):
+                    continue
+
+            if len(results) >= max_results:
+                break
+
         return [TextContent(type="text", text=json.dumps({
             "query": query,
-            "matches": len(matches),
-            "results": matches
+            "matches": len(results),
+            "results": results
         }))]
     except Exception as e:
         return [TextContent(type="text", text=json.dumps({"error": str(e)}))]

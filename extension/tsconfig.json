@@ -2,19 +2,27 @@
     "compilerOptions": {
         "module": "commonjs",
         "target": "ES2020",
+        "moduleResolution": "node",
         "lib": [
-            "ES2020"
+            "ES2020",
+            "DOM"
         ],
-        "outDir": "${workspaceFolder}/extension/dist",
-        "rootDir": "${workspaceFolder}/extension/src",
+        "types": [
+            "node",
+            "vscode"
+        ],
+        "outDir": "./dist",
+        "rootDir": "./src",
         "strict": true,
         "esModuleInterop": true,
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true,
-        "resolveJsonModule": true
+        "resolveJsonModule": true,
+        "sourceMap": true
     },
     "exclude": [
         "node_modules",
-        ".vscode-test"
+        ".vscode-test",
+        "dist"
     ]
 }

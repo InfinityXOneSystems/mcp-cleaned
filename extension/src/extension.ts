@@ -21,13 +21,16 @@ export function activate(context: vscode.ExtensionContext) {
 
 		// Handle messages from the webview
 		panel.webview.onDidReceiveMessage(
-			message => {
+			(message: { command: 'log' | 'chat' | 'trade' | 'getPortfolio'; text?: string; data?: any }) => {
 				switch (message.command) {
 					case 'log':
-						console.log(message.text);
+						// Log to VS Code output channel for extension scope
+						const channel = vscode.window.createOutputChannel('Trading Command Center');
+						channel.appendLine(String(message.text ?? ''));
+						channel.show(true);
 						return;
 					case 'chat':
-						handleChat(message.text, panel.webview);
+						handleChat(message.text ?? '', panel.webview);
 						return;
 					case 'trade':
 						handleTrade(message.data, panel.webview);
@@ -572,7 +575,7 @@ function handleChat(message: string, webview: vscode.Webview) {
 	}
 
 	// Send response back to webview
-	setTimeout(() => {
+	setTimeout((): void => {
 		webview.postMessage({
 			command: 'addMessage',
 			text: response,

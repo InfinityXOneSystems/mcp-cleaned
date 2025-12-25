@@ -1,0 +1,14 @@
+{
+  "name": "google",
+  "status": "success",
+  "checks": [
+    {
+      "check": "load_service_account",
+      "result": true
+    },
+    {
+      "check": "project_id",
+      "result": true
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "name": "github",
+  "status": "skipped",
+  "checks": [
+    {
+      "check": "token_present",
+      "result": false
+    }
+  ],
+  "note": "Set GITHUB_TOKEN to enable GitHub API checks"
+}
