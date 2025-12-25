@@ -1,0 +1,29 @@
+{
+  "hydration_time": "2025-12-25T14:48:56.805363Z",
+  "service_account": {
+    "__error": "Client error '404 Not Found' for url 'https://mcp-agent-896380409704.us-east1.run.app/gcp/load_service_account'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+    "status_code": 404
+  },
+  "memory": {
+    "__error": "Client error '401 Unauthorized' for url 'https://memory-gateway-896380409704.us-east1.run.app/memory/rehydrate'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401",
+    "status_code": 401
+  },
+  "mcp": {
+    "health": {
+      "status": "ok",
+      "role": "LEADER",
+      "runtime": "orchestrator"
+    },
+    "info": null,
+    "tools": null
+  },
+  "orchestrator": {
+    "health": {
+      "status": "ok",
+      "role": "LEADER",
+      "runtime": "orchestrator"
+    },
+    "info": null,
+    "execute_probe": null
+  }
+}
