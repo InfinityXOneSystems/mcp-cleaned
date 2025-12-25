@@ -24,6 +24,11 @@ app.add_middleware(
 )
 
 DB_PATH = 'mcp_memory.db'
+DEFAULT_PORT = int(os.environ.get('INTELLIGENCE_PORT', '8002'))
+
+@app.get("/health")
+async def health():
+    return { 'status': 'ok', 'service': 'intelligence_api' }
 
 @app.get("/")
 async def root():
@@ -184,5 +189,27 @@ async def get_source_preview(source_id: int):
 
 
 if __name__ == '__main__':
+    import socket
     import uvicorn
-    uvicorn.run(app, host='0.0.0.0', port=8002)
+
+    def can_bind(port: int) -> bool:
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                s.bind(('0.0.0.0', port))
+            return True
+        except Exception:
+            return False
+
+    port = DEFAULT_PORT
+    if not can_bind(port):
+        # Try fallback ports
+        for candidate in (8012, 8082):
+            if can_bind(candidate):
+                port = candidate
+                break
+        else:
+            # Last resort: random OS-assigned port (not ideal for SPA)
+            port = 0
+
+    uvicorn.run(app, host='0.0.0.0', port=port)
