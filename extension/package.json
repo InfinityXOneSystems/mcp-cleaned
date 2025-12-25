@@ -1,8 +1,8 @@
 {
-    "name": "trading-command-center",
-    "displayName": "Trading Command Center",
-    "description": "AI Trading Dashboard with Integrated Chat",
-    "version": "1.0.0",
+    "name": "intelligence-command-center",
+    "displayName": "Intelligence Command Center",
+    "description": "Real Estate & Financial Intelligence Platform with AI Crawler",
+    "version": "2.0.0",
     "publisher": "infinity-x-one",
     "repository": {
         "type": "git",
@@ -15,23 +15,23 @@
         "Dashboard"
     ],
     "activationEvents": [
-        "onCommand:trading.open",
+        "onCommand:intelligence.open",
         "onStartupFinished"
     ],
     "main": "./dist/extension.js",
     "contributes": {
         "commands": [
             {
-                "command": "trading.open",
-                "title": "Open Trading Command Center",
-                "category": "Trading"
+                "command": "intelligence.open",
+                "title": "Open Intelligence Command Center",
+                "category": "Intelligence"
             }
         ],
         "keybindings": [
             {
-                "command": "trading.open",
-                "key": "ctrl+shift+t",
-                "mac": "cmd+shift+t"
+                "command": "intelligence.open",
+                "key": "ctrl+shift+i",
+                "mac": "cmd+shift+i"
             }
         ]
     },
