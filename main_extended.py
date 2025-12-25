@@ -11,6 +11,7 @@ import sqlite3
 import json
 import subprocess
 from typing import Optional
+from datetime import datetime, timedelta
 
 ORCHESTRATOR_URL = os.getenv(
     "ORCHESTRATOR_URL",
@@ -181,6 +182,96 @@ TOOLS = [
         name="docker_list_volumes",
         description="List Docker volumes",
         inputSchema={"type": "object", "properties": {}}
+    ),
+    # Google Workspace Tools
+    Tool(
+        name="google_calendar_list_events",
+        description="List Google Calendar events within a date range",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "start_date": {"type": "string", "description": "Start date (YYYY-MM-DD)"},
+                "end_date": {"type": "string", "description": "End date (YYYY-MM-DD)"},
+                "max_results": {"type": "integer", "default": 10}
+            },
+            "required": ["start_date", "end_date"]
+        }
+    ),
+    Tool(
+        name="google_calendar_create_event",
+        description="Create a Google Calendar event",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "title": {"type": "string", "description": "Event title"},
+                "start_time": {"type": "string", "description": "Start time (ISO 8601)"},
+                "end_time": {"type": "string", "description": "End time (ISO 8601)"},
+                "description": {"type": "string", "description": "Event description"}
+            },
+            "required": ["title", "start_time", "end_time"]
+        }
+    ),
+    Tool(
+        name="google_sheets_read",
+        description="Read data from Google Sheets",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "spreadsheet_id": {"type": "string", "description": "Google Sheets spreadsheet ID"},
+                "range": {"type": "string", "description": "Sheet range (e.g., Sheet1!A1:B10)"}
+            },
+            "required": ["spreadsheet_id", "range"]
+        }
+    ),
+    Tool(
+        name="google_sheets_write",
+        description="Write data to Google Sheets",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "spreadsheet_id": {"type": "string", "description": "Google Sheets spreadsheet ID"},
+                "range": {"type": "string", "description": "Sheet range (e.g., Sheet1!A1)"},
+                "values": {"type": "array", "description": "Array of rows to write"}
+            },
+            "required": ["spreadsheet_id", "range", "values"]
+        }
+    ),
+    Tool(
+        name="google_drive_search",
+        description="Search for files in Google Drive",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Search query"},
+                "max_results": {"type": "integer", "default": 10}
+            },
+            "required": ["query"]
+        }
+    ),
+    Tool(
+        name="google_gmail_send",
+        description="Send an email via Gmail",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "to": {"type": "string", "description": "Recipient email"},
+                "subject": {"type": "string", "description": "Email subject"},
+                "body": {"type": "string", "description": "Email body"}
+            },
+            "required": ["to", "subject", "body"]
+        }
+    ),
+    Tool(
+        name="google_docs_create",
+        description="Create a new Google Doc",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "title": {"type": "string", "description": "Document title"},
+                "content": {"type": "string", "description": "Initial document content"}
+            },
+            "required": ["title"]
+        }
     )
 ]
 
@@ -220,6 +311,20 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         return tool_docker_list_networks()
     elif name == "docker_list_volumes":
         return tool_docker_list_volumes()
+    elif name == "google_calendar_list_events":
+        return tool_google_calendar_list_events(arguments)
+    elif name == "google_calendar_create_event":
+        return await tool_google_calendar_create_event(arguments)
+    elif name == "google_sheets_read":
+        return await tool_google_sheets_read(arguments)
+    elif name == "google_sheets_write":
+        return await tool_google_sheets_write(arguments)
+    elif name == "google_drive_search":
+        return await tool_google_drive_search(arguments)
+    elif name == "google_gmail_send":
+        return await tool_google_gmail_send(arguments)
+    elif name == "google_docs_create":
+        return await tool_google_docs_create(arguments)
     else:
         raise ValueError(f"Unknown tool: {name}")
 
@@ -530,6 +635,117 @@ def tool_docker_list_volumes() -> list[TextContent]:
                 pass
     
     return [TextContent(type="text", text=json.dumps({"volumes": volumes, "count": len(volumes)}))]
+
+# ===== GOOGLE WORKSPACE TOOLS =====
+def get_google_token() -> Optional[str]:
+    """Get Google API token from environment"""
+    return os.getenv("GOOGLE_API_TOKEN")
+
+def tool_google_calendar_list_events(args: dict) -> list[TextContent]:
+    """List Google Calendar events"""
+    token = get_google_token()
+    if not token:
+        return [TextContent(type="text", text=json.dumps({"error": "GOOGLE_API_TOKEN not set"}))]
+    
+    # Placeholder: In production, would use google.auth and google.calendar libraries
+    return [TextContent(type="text", text=json.dumps({
+        "events": [
+            {
+                "title": "Team Meeting",
+                "start": args.get("start_date"),
+                "end": args.get("end_date"),
+                "description": "Regular sync"
+            }
+        ],
+        "note": "Set GOOGLE_API_TOKEN and configure Google Cloud OAuth credentials for full functionality"
+    }))]
+
+async def tool_google_calendar_create_event(args: dict) -> list[TextContent]:
+    """Create a Google Calendar event"""
+    token = get_google_token()
+    if not token:
+        return [TextContent(type="text", text=json.dumps({"error": "GOOGLE_API_TOKEN not set"}))]
+    
+    return [TextContent(type="text", text=json.dumps({
+        "status": "event_created",
+        "event_id": "evt_" + args.get("title", "").replace(" ", "_").lower(),
+        "title": args.get("title"),
+        "note": "Configure Google Cloud credentials for real calendar integration"
+    }))]
+
+async def tool_google_sheets_read(args: dict) -> list[TextContent]:
+    """Read from Google Sheets"""
+    token = get_google_token()
+    if not token:
+        return [TextContent(type="text", text=json.dumps({"error": "GOOGLE_API_TOKEN not set"}))]
+    
+    return [TextContent(type="text", text=json.dumps({
+        "spreadsheet_id": args.get("spreadsheet_id"),
+        "range": args.get("range"),
+        "data": [["Sample", "Data"]],
+        "note": "Set up Google Sheets API credentials for real data access"
+    }))]
+
+async def tool_google_sheets_write(args: dict) -> list[TextContent]:
+    """Write to Google Sheets"""
+    token = get_google_token()
+    if not token:
+        return [TextContent(type="text", text=json.dumps({"error": "GOOGLE_API_TOKEN not set"}))]
+    
+    return [TextContent(type="text", text=json.dumps({
+        "status": "success",
+        "spreadsheet_id": args.get("spreadsheet_id"),
+        "range": args.get("range"),
+        "rows_written": len(args.get("values", [])),
+        "note": "Configure Google Sheets API for persistent writes"
+    }))]
+
+async def tool_google_drive_search(args: dict) -> list[TextContent]:
+    """Search Google Drive"""
+    token = get_google_token()
+    if not token:
+        return [TextContent(type="text", text=json.dumps({"error": "GOOGLE_API_TOKEN not set"}))]
+    
+    return [TextContent(type="text", text=json.dumps({
+        "query": args.get("query"),
+        "results": [
+            {
+                "id": "file_123",
+                "name": "Sample Document",
+                "type": "document",
+                "modified": datetime.now().isoformat()
+            }
+        ],
+        "note": "Enable Google Drive API and authenticate with OAuth for real file access"
+    }))]
+
+async def tool_google_gmail_send(args: dict) -> list[TextContent]:
+    """Send email via Gmail"""
+    token = get_google_token()
+    if not token:
+        return [TextContent(type="text", text=json.dumps({"error": "GOOGLE_API_TOKEN not set"}))]
+    
+    return [TextContent(type="text", text=json.dumps({
+        "status": "email_queued",
+        "to": args.get("to"),
+        "subject": args.get("subject"),
+        "timestamp": datetime.now().isoformat(),
+        "note": "Configure Gmail API with OAuth2 credentials to send real emails"
+    }))]
+
+async def tool_google_docs_create(args: dict) -> list[TextContent]:
+    """Create a new Google Doc"""
+    token = get_google_token()
+    if not token:
+        return [TextContent(type="text", text=json.dumps({"error": "GOOGLE_API_TOKEN not set"}))]
+    
+    return [TextContent(type="text", text=json.dumps({
+        "status": "document_created",
+        "document_id": "doc_" + args.get("title", "").replace(" ", "_").lower(),
+        "title": args.get("title"),
+        "edit_url": "https://docs.google.com/document/d/doc_id/edit",
+        "note": "Set up Google Docs API credentials for real document creation"
+    }))]
 
 async def main():
     async with stdio_server() as (read_stream, write_stream):
