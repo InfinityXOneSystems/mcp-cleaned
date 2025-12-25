@@ -45,27 +45,27 @@ add_chat_message("system", "System online. Ready for commands.")
 # Serve dashboard HTML at root
 @app.get("/")
 async def root():
-    with open("command_center.html", "r", encoding="utf-8") as f:
+    with open("command_center_spa.html", "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
 @app.get("/dashboard.html")
 async def dashboard():
-    with open("command_center.html", "r", encoding="utf-8") as f:
+    with open("command_center_spa.html", "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
 @app.get("/command-center")
 async def command_center():
-    with open("command_center.html", "r", encoding="utf-8") as f:
+    with open("command_center_spa.html", "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
 @app.get("/command_center.html")
 async def command_center_html():
-    with open("command_center.html", "r", encoding="utf-8") as f:
+    with open("command_center_spa.html", "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
 @app.get("/command_center")
 async def command_center_alt():
-    with open("command_center.html", "r", encoding="utf-8") as f:
+    with open("command_center_spa.html", "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
 # ===== CHAT ENDPOINTS =====

@@ -3,367 +3,323 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trading Command Center</title>
+    <title>Infinity Command Center</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        html, body {
-            width: 100%;
-            height: 100%;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; }
         body {
             background: #05060b;
             color: #f5f7fb;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
             font-size: 13px;
             line-height: 1.5;
+            overflow: hidden;
         }
 
-        .workspace {
-            display: grid;
-            grid-template-columns: 25% 1fr;
+        .page {
+            display: flex;
+            flex-direction: column;
             height: 100vh;
-            gap: 1px;
-            background: #0b0d15;
-        }
-
-        /* SIDEBAR - CHAT */
-        .sidebar {
-            background: rgba(12, 14, 22, 0.7);
-            backdrop-filter: blur(10px);
-            border-right: 1px solid rgba(255, 255, 255, 0.05);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .chat-header {
-            padding: 16px 20px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .chat-label {
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #8b92a9;
-            font-weight: 600;
-        }
-
-        .chat-messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .message {
-            display: flex;
-            gap: 8px;
-            animation: slideIn 0.2s ease;
-        }
-
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .message.user {
-            justify-content: flex-end;
-        }
-
-        .message-bubble {
-            max-width: 85%;
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            line-height: 1.4;
-        }
-
-        .message.system .message-bubble {
-            background: rgba(120, 130, 155, 0.08);
-            border: 1px solid rgba(120, 130, 155, 0.18);
-            color: #d7dbea;
-        }
-
-        .message.user .message-bubble {
-            background: rgba(31, 107, 255, 0.22);
-            border: 1px solid rgba(31, 107, 255, 0.5);
-            color: #f5f7fb;
-        }
-
-        .chat-input-wrapper {
-            padding: 16px;
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-            display: flex;
-            gap: 8px;
-        }
-
-        .chat-input {
-            flex: 1;
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 6px;
-            padding: 8px 12px;
-            color: #f5f7fb;
-            font-size: 12px;
-            font-family: inherit;
-        }
-
-        .chat-input::placeholder {
-            color: rgba(255, 255, 255, 0.25);
-        }
-
-        .chat-input:focus {
-            outline: none;
-            border-color: rgba(255, 255, 255, 0.15);
-            background: rgba(255, 255, 255, 0.06);
-        }
-
-        .send-btn {
-            background: rgba(31, 107, 255, 0.3);
-            border: 1px solid rgba(31, 107, 255, 0.6);
-            border-radius: 6px;
-            padding: 8px 14px;
-            color: #d7dbea;
-            font-size: 11px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.15s ease;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-        }
-
-        .send-btn:hover {
-            background: rgba(31, 107, 255, 0.55);
-            border-color: rgba(31, 107, 255, 0.8);
-            color: #f5f7fb;
-        }
-
-        /* MAIN CONTENT */
-        .main-content {
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
             background: #05060b;
         }
 
-        .dashboard-header {
-            padding: 20px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        .tabs {
+            display: flex;
+            gap: 2px;
+            padding: 16px 20px 0 20px;
             background: rgba(12, 14, 22, 0.55);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
         }
-
-        .header-left {
-            flex: 1;
-        }
-
-        .header-title {
-            font-size: 20px;
-            font-weight: 600;
-            color: #f5f7fb;
-            margin-bottom: 12px;
-        }
-
-        .metrics-row {
-            display: flex;
-            gap: 32px;
-        }
-
-        .metric {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .metric-label {
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.4px;
+        .tab {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-bottom: none;
+            border-radius: 6px 6px 0 0;
+            padding: 10px 20px;
             color: #9aa2b8;
-            font-weight: 600;
-        }
-
-        .metric-value {
-            font-size: 16px;
-            font-weight: 600;
-            color: #f5f7fb;
-        }
-
-        .metric-value.positive {
-            color: #3dfc7c;
-        }
-
-        .metric-value.negative {
-            color: #f87171;
-        }
-
-        .mode-controls {
-            display: flex;
-            gap: 6px;
-        }
-
-        .mode-btn {
-            padding: 6px 14px;
-            background: rgba(31, 107, 255, 0.12);
-            border: 1px solid rgba(31, 107, 255, 0.35);
-            border-radius: 6px;
-            color: #c6cee0;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.15s ease;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
+            text-decoration: none;
         }
+        .tab:hover { background: rgba(255, 255, 255, 0.08); color: #d7dbea; }
+        .tab.active { background: rgba(31, 107, 255, 0.2); border-color: rgba(31, 107, 255, 0.5); color: #f5f7fb; }
 
-        .mode-btn:hover,
-        .mode-btn.active {
-            background: rgba(31, 107, 255, 0.35);
-            border-color: rgba(31, 107, 255, 0.7);
-            color: #f5f7fb;
-        }
+        .section { display: none; flex: 1; overflow: hidden; }
+        .section.active { display: flex; }
 
-        /* ANALYTICS GRID */
-        .analytics {
-            flex: 1;
-            overflow: auto;
-            padding: 20px;
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            grid-template-rows: auto auto auto;
-            gap: 12px;
-        }
+        /* Trading layout */
+        .trading-shell {
+            <script>
+                const CHAT_ENDPOINT = 'http://localhost:8001/api/chat';
+                const PORTFOLIO_ENDPOINT = 'http://localhost:8001/api/portfolio';
+                const INTEL_BASE = 'http://localhost:8002';
+                let perfChart = null;
+                let allocChart = null;
+                let currentSources = [];
+                let selectedSourceId = null;
 
-        .card {
-            background: rgba(12, 14, 22, 0.72);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-            padding: 16px;
-            backdrop-filter: blur(10px);
-            display: flex;
-            flex-direction: column;
-            min-height: 200px;
-        }
+                // Tabs
+                document.querySelectorAll('.tab').forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+                        tab.classList.add('active');
+                        document.getElementById(tab.dataset.tab).classList.add('active');
+                    });
+                });
 
-        .card-title {
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.4px;
-            color: #9aa2b8;
-            margin-bottom: 12px;
-            font-weight: 600;
-        }
+                // Trading functions
+                function initCharts() {
+                    const perfCtx = document.getElementById('performanceChart').getContext('2d');
+                    perfChart = new Chart(perfCtx, {
+                        type: 'line',
+                        data: {
+                            labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Today'],
+                            datasets: [{
+                                label: 'Portfolio',
+                                data: [5000, 5120, 5080, 5250, 5180, 5340],
+                                borderColor: '#5078b4',
+                                backgroundColor: 'rgba(80, 120, 180, 0.03)',
+                                borderWidth: 1.5,
+                                fill: true,
+                                tension: 0.3,
+                                pointRadius: 3,
+                                pointBackgroundColor: '#5078b4',
+                                pointBorderColor: '#0a0e27',
+                                pointBorderWidth: 1,
+                                pointHoverRadius: 4,
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                y: { grid: { color: 'rgba(255, 255, 255, 0.02)', drawBorder: false }, ticks: { color: '#8b92a9', font: { size: 10 } } },
+                                x: { grid: { display: false }, ticks: { color: '#8b92a9', font: { size: 10 } } }
+                            }
+                        }
+                    });
 
-        .card-content {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
+                    const allocCtx = document.getElementById('allocationChart').getContext('2d');
+                    allocChart = new Chart(allocCtx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Crypto', 'Stocks', 'Commodities', 'Indices', 'Forex', 'Cash'],
+                            datasets: [{
+                                data: [25, 28, 18, 12, 5, 12],
+                                backgroundColor: [
+                                    'rgba(80, 120, 180, 0.7)',
+                                    'rgba(100, 140, 200, 0.7)',
+                                    'rgba(60, 100, 160, 0.7)',
+                                    'rgba(120, 160, 220, 0.7)',
+                                    'rgba(70, 110, 170, 0.7)',
+                                    'rgba(40, 60, 100, 0.7)'
+                                ],
+                                borderColor: '#0a0e27',
+                                borderWidth: 2
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { position: 'bottom', labels: { color: '#8b92a9', font: { size: 10 }, padding: 8, usePointStyle: true } } }
+                        }
+                    });
+                }
 
-        .stat-block {
-            text-align: center;
-        }
+                async function loadData() {
+                    try {
+                        const res = await fetch(PORTFOLIO_ENDPOINT);
+                        const data = await res.json();
+                        const val = data.total_value.toFixed(2);
+                        const ret = data.total_pnl_pct;
+                        const pnl = data.total_pnl;
+                        document.getElementById('headerValue').textContent = `$${val}`;
+                        document.getElementById('statValue').textContent = `$${Math.round(data.total_value).toLocaleString()}`;
+                        const returnEl = document.getElementById('headerReturn');
+                        returnEl.textContent = `${ret >= 0 ? '+' : ''}${ret.toFixed(2)}%`;
+                        returnEl.className = `metric-value ${ret >= 0 ? 'positive' : 'negative'}`;
+                        const pnlEl = document.getElementById('statPnL');
+                        pnlEl.textContent = `${pnl >= 0 ? '+' : ''}$${Math.round(pnl).toLocaleString()}`;
+                        pnlEl.className = `stat-value ${pnl >= 0 ? 'positive' : 'negative'}`;
+                        document.getElementById('headerPositions').textContent = data.num_positions;
+                        document.getElementById('statPositions').textContent = data.num_positions;
+                        const tbody = document.getElementById('positionsTable');
+                        if (data.positions.length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px;">No open positions</td></tr>';
+                        } else {
+                            tbody.innerHTML = data.positions.map(p => `
+                                <tr>
+                                    <td>${p.asset}</td>
+                                    <td>${p.direction}</td>
+                                    <td>$${p.entry_price.toFixed(2)}</td>
+                                    <td>$${p.current_price.toFixed(2)}</td>
+                                    <td>${p.quantity.toFixed(4)}</td>
+                                    <td>$${p.entry_value.toFixed(0)}</td>
+                                    <td>$${p.current_value.toFixed(0)}</td>
+                                    <td class="${p.pnl >= 0 ? 'positive' : 'negative'}">${p.pnl >= 0 ? '+' : ''}$${p.pnl.toFixed(0)}</td>
+                                    <td class="${p.pnl_pct >= 0 ? 'positive' : 'negative'}">${p.pnl_pct >= 0 ? '+' : ''}${p.pnl_pct.toFixed(1)}%</td>
+                                </tr>
+                            `).join('');
+                        }
+                    } catch (e) { console.error('Error loading data:', e); }
+                }
 
-        .stat-value {
-            font-size: 28px;
-            font-weight: 700;
-            color: #e0e6ed;
-            margin-bottom: 4px;
-        }
+                async function sendMessage() {
+                    const input = document.getElementById('chatInput');
+                    const msg = input.value.trim();
+                    if (!msg) return;
+                    input.value = '';
+                    try {
+                        await fetch(CHAT_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role: 'user', text: msg }) });
+                        await fetchChat();
+                    } catch (err) { console.error('Chat send failed', err); }
+                }
 
-        .stat-desc {
-            font-size: 11px;
-            color: #8b92a9;
-        }
+                async function fetchChat() {
+                    try {
+                        const res = await fetch(CHAT_ENDPOINT);
+                        const data = await res.json();
+                        renderChat(data.messages || []);
+                    } catch (err) { console.error('Chat fetch failed', err); }
+                }
 
-        .chart-container {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            min-height: 180px;
-        }
+                function renderChat(messages) {
+                    const box = document.getElementById('chatMessages');
+                    box.innerHTML = '';
+                    messages.forEach(m => {
+                        const roleClass = m.role === 'user' ? 'user' : 'system';
+                        const el = document.createElement('div');
+                        el.className = `message ${roleClass}`;
+                        el.innerHTML = `<div class="message-bubble">${m.text}</div>`;
+                        box.appendChild(el);
+                    });
+                    box.scrollTop = box.scrollHeight;
+                }
 
-        .table-scroll {
-            overflow-x: auto;
-            width: 100%;
-        }
+                function setMode(ev, mode) {
+                    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                    ev.target.classList.add('active');
+                    const box = document.getElementById('chatMessages');
+                    const el = document.createElement('div');
+                    el.className = 'message system';
+                    el.innerHTML = `<div class="message-bubble">Switched to ${mode} mode.</div>`;
+                    box.appendChild(el);
+                    box.scrollTop = box.scrollHeight;
+                }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 11px;
-        }
+                // Intelligence functions
+                async function loadCategories() {
+                    try {
+                        const res = await fetch(`${INTEL_BASE}/api/intelligence/categories`);
+                        const categories = await res.json();
+                        const categorySelect = document.getElementById('categorySelect');
+                        categorySelect.innerHTML = '<option value="">All Categories</option>';
+                        for (const [category, subcats] of Object.entries(categories)) {
+                            const total = Object.values(subcats).reduce((sum, count) => sum + count, 0);
+                            const opt = document.createElement('option');
+                            opt.value = category; opt.textContent = `${category} (${total})`;
+                            categorySelect.appendChild(opt);
+                        }
+                        categorySelect.onchange = () => { loadSubcategories(categories); loadSources(); };
+                        loadSubcategories(categories);
+                    } catch (err) { console.error('Failed to load categories', err); }
+                }
 
-        table thead {
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-        }
+                function loadSubcategories(categories) {
+                    const category = document.getElementById('categorySelect').value;
+                    const subcategorySelect = document.getElementById('subcategorySelect');
+                    subcategorySelect.innerHTML = '<option value="">All Sub-Industries</option>';
+                    if (category && categories[category]) {
+                        for (const [subcat, count] of Object.entries(categories[category])) {
+                            const opt = document.createElement('option');
+                            opt.value = subcat; opt.textContent = `${subcat} (${count})`;
+                            subcategorySelect.appendChild(opt);
+                        }
+                    }
+                }
 
-        table th {
-            text-align: left;
-            padding: 10px 0;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-            color: #8b92a9;
-            font-size: 10px;
-        }
+                async function loadSources() {
+                    const category = document.getElementById('categorySelect').value;
+                    const subcategory = document.getElementById('subcategorySelect').value;
+                    const search = document.getElementById('searchInput').value;
+                    try {
+                        const params = new URLSearchParams();
+                        if (category) params.append('category', category);
+                        if (subcategory) params.append('subcategory', subcategory);
+                        if (search) params.append('search', search);
+                        const res = await fetch(`${INTEL_BASE}/api/intelligence/sources?${params}`);
+                        const data = await res.json();
+                        currentSources = data.sources || [];
+                        document.getElementById('sourceCount').textContent = data.count;
+                        const list = document.getElementById('sourcesList');
+                        if (currentSources.length === 0) {
+                            list.innerHTML = '<div style="text-align: center; padding: 40px; color: #9aa2b8;">No sources found</div>';
+                            return;
+                        }
+                        list.innerHTML = currentSources.map(source => `
+                            <div class="source-item" data-id="${source.id}" onclick="selectSource(event, ${source.id})">
+                                <div class="source-url">${source.url}</div>
+                                <div class="source-key">${source.key}</div>
+                            </div>
+                        `).join('');
+                    } catch (err) { console.error('Failed to load sources', err); }
+                }
 
-        table td {
-            padding: 10px 0;
-            color: #d7dbea;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.02);
-        }
+                async function selectSource(ev, id) {
+                    selectedSourceId = id;
+                    document.querySelectorAll('.source-item').forEach(el => el.classList.remove('active'));
+                    const target = ev.currentTarget || ev.target.closest('.source-item');
+                    if (target) target.classList.add('active');
+                    try {
+                        const res = await fetch(`${INTEL_BASE}/api/intelligence/preview/${id}`);
+                        const data = await res.json();
+                        const content = document.querySelector('.preview-content');
+                        content.innerHTML = `
+                            <div class="preview-data">
+                                <div style="margin-bottom: 12px;"><strong>ID:</strong> ${data.id}<br><strong>Key:</strong> ${data.key}</div>
+                                <div style="margin-bottom: 8px;"><strong>Raw Data:</strong></div>
+                                <pre>${JSON.stringify(data.data, null, 2)}</pre>
+                            </div>
+                        `;
+                    } catch (err) { console.error('Failed to load preview', err); }
+                }
 
-        table tbody tr:hover {
-            background: rgba(80, 120, 180, 0.03);
-        }
+                function scheduleModal() {
+                    alert('Schedule crawl feature coming soon! Set recurring crawls per category.');
+                }
 
-        .positive { color: #4ade80; }
-        .negative { color: #f87171; }
-
-        .card.span2 {
-            grid-column: span 2;
-            min-height: auto;
-        }
-
-        .card.span3 {
-            grid-column: span 3;
-        }
-
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.08);
-            border-radius: 3px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.12);
-        }
-    </style>
-</head>
-<body>
+                document.addEventListener('DOMContentLoaded', () => {
+                    initCharts();
+                    loadData();
+                    setInterval(loadData, 10000);
+                    document.getElementById('chatInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+                    fetchChat();
+                    setInterval(fetchChat, 5000);
+                    loadCategories();
+                    loadSources();
+                    document.getElementById('searchInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') loadSources(); });
+                });
+            </script>
+            loadCategories();
+            loadSources();
+            document.getElementById('searchInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') loadSources(); });
+        });
+    </script>
+</body>
+</html>
     <div class="workspace">
+        <div class="tabs">
+            <a href="http://localhost:8001/command_center.html" class="tab active">Trading Dashboard</a>
+            <a href="http://localhost:8002/" class="tab">Intelligence Browser</a>
+            <a href="#" class="tab" onclick="alert('Coming soon: Prediction Analytics'); return false;">Predictions</a>
+            <a href="#" class="tab" onclick="alert('Coming soon: Portfolio Analysis'); return false;">Portfolio</a>
+        </div>
+
         <!-- CHAT SIDEBAR -->
         <div class="sidebar">
             <div class="chat-header">

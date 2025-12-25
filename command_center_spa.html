@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Infinity Command Center (SPA)</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; }
+    body { background: #05060b; color: #f5f7fb; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif; font-size: 13px; line-height: 1.5; overflow: hidden; }
+    .page { display: flex; flex-direction: column; height: 100vh; }
+    .tabs { display: flex; gap: 2px; padding: 16px 20px 0 20px; background: rgba(12,14,22,0.55); border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .tab { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-bottom: none; border-radius: 6px 6px 0 0; padding: 10px 20px; color: #9aa2b8; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s ease; }
+    .tab:hover { background: rgba(255,255,255,0.08); color: #d7dbea; }
+    .tab.active { background: rgba(31,107,255,0.2); border-color: rgba(31,107,255,0.5); color: #f5f7fb; }
+    .section { display: none; flex: 1; overflow: hidden; }
+    .section.active { display: flex; }
+    .shell { display: grid; grid-template-columns: 320px 1fr; gap: 0; height: calc(100vh - 64px); }
+    .sidebar { border-right: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.03); display: flex; flex-direction: column; }
+    .main { display: flex; flex-direction: column; }
+    .chat-header { padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: space-between; }
+    .chat-label { font-size: 12px; color: #9aa2b8; font-weight: 600; }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 16px; }
+    .message { margin-bottom: 12px; display: flex; }
+    .message.user { justify-content: flex-end; }
+    .message-bubble { max-width: 90%; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); color: #d7dbea; }
+    .message.user .message-bubble { background: rgba(31,107,255,0.15); border-color: rgba(31,107,255,0.35); color: #f5f7fb; }
+    .chat-input-wrap { display: flex; gap: 8px; padding: 12px; border-top: 1px solid rgba(255,255,255,0.06); }
+    .chat-input { flex: 1; padding: 10px 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; color: #f5f7fb; }
+    .send-btn { padding: 10px 14px; background: rgba(31,107,255,0.2); border: 1px solid rgba(31,107,255,0.4); border-radius: 10px; color: #f5f7fb; cursor: pointer; }
+    .header { padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .header-title { font-size: 14px; font-weight: 700; color: #eef2ff; }
+    .metrics { display: flex; gap: 16px; }
+    .metric { display: flex; flex-direction: column; gap: 6px; }
+    .metric-label { font-size: 11px; color: #9aa2b8; }
+    .metric-value { font-size: 16px; font-weight: 700; }
+    .metric-value.positive { color: #72d572; }
+    .metric-value.negative { color: #ff8272; }
+    .mode-controls { display: flex; gap: 8px; }
+    .mode-btn { padding: 8px 12px; border-radius: 8px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: #d7dbea; cursor: pointer; }
+    .mode-btn.active { background: rgba(31,107,255,0.2); border-color: rgba(31,107,255,0.4); color: #f5f7fb; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 16px 20px; overflow: auto; }
+    .card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; overflow: hidden; }
+    .card-title { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 12px; color: #9aa2b8; font-weight: 600; }
+    .card-content { padding: 12px; }
+    .span2 { grid-column: span 2; }
+    .span3 { grid-column: span 3; }
+    .chart { height: 220px; }
+    .table-scroll { max-height: 280px; overflow: auto; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 8px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    th { color: #9aa2b8; font-weight: 600; font-size: 12px; }
+    .intel-wrap { display: grid; grid-template-columns: 1fr 2fr; height: calc(100vh - 64px); }
+    .intel-controls { border-right: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.03); display: flex; flex-direction: column; }
+    .controls { padding: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .controls input, .controls select { padding: 8px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: #f5f7fb; }
+    .controls .actions { grid-column: span 2; display: flex; gap: 8px; }
+    .sources { flex: 1; overflow-y: auto; padding: 12px; }
+    .source-item { padding: 8px; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; margin-bottom: 8px; cursor: pointer; }
+    .source-item.active { border-color: rgba(31,107,255,0.5); background: rgba(31,107,255,0.15); }
+    .preview { display: flex; flex-direction: column; }
+    .preview-header { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center; }
+    .preview-content { flex: 1; overflow: auto; padding: 12px; }
+    .schedule-btn { padding: 8px 12px; background: rgba(31,107,255,0.2); border: 1px solid rgba(31,107,255,0.4); border-radius: 8px; color: #f5f7fb; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="tabs">
+      <a class="tab active" data-tab="trading">Trading Dashboard</a>
+      <a class="tab" data-tab="intelligence">Intelligence</a>
+      <a class="tab" data-tab="predictions">Predictions</a>
+    </div>
+    <div id="trading" class="section active">
+      <div class="shell">
+        <div class="sidebar">
+          <div class="chat-header"><div class="chat-label">Assistant</div></div>
+          <div id="chatMessages" class="chat-messages">
+            <div class="message system"><div class="message-bubble">System online. Ready for commands.</div></div>
+          </div>
+          <div class="chat-input-wrap">
+            <input id="chatInput" class="chat-input" placeholder="Query trades, analysis, predictions..." autocomplete="off" />
+            <button class="send-btn" onclick="sendMessage()">Send</button>
+          </div>
+        </div>
+        <div class="main">
+          <div class="header">
+            <div>
+              <div class="header-title">Trading Dashboard</div>
+              <div class="metrics">
+                <div class="metric"><div class="metric-label">Portfolio Value</div><div id="headerValue" class="metric-value">$0.00</div></div>
+                <div class="metric"><div class="metric-label">Total Return</div><div id="headerReturn" class="metric-value positive">+0.00%</div></div>
+                <div class="metric"><div class="metric-label">Active Positions</div><div id="headerPositions" class="metric-value">0</div></div>
+                <div class="metric"><div class="metric-label">Win Rate</div><div id="headerWinRate" class="metric-value">0.0%</div></div>
+              </div>
+            </div>
+            <div class="mode-controls">
+              <button class="mode-btn active" onclick="setMode(event,'auto')">Auto</button>
+              <button class="mode-btn" onclick="setMode(event,'hybrid')">Hybrid</button>
+              <button class="mode-btn" onclick="setMode(event,'manual')">Manual</button>
+            </div>
+          </div>
+          <div class="grid">
+            <div class="card"><div class="card-title">Account Value</div><div class="card-content"><div id="statValue" class="metric-value">$0</div></div></div>
+            <div class="card"><div class="card-title">Profit/Loss</div><div class="card-content"><div id="statPnL" class="metric-value positive">+$0</div></div></div>
+            <div class="card"><div class="card-title">Open Positions</div><div class="card-content"><div id="statPositions" class="metric-value">0</div></div></div>
+            <div class="card span2"><div class="card-title">Performance Trajectory</div><div class="card-content"><canvas id="performanceChart" class="chart"></canvas></div></div>
+            <div class="card"><div class="card-title">Asset Allocation</div><div class="card-content"><canvas id="allocationChart" class="chart"></canvas></div></div>
+            <div class="card span3">
+              <div class="card-title">Open Positions</div>
+              <div class="card-content">
+                <div class="table-scroll">
+                  <table>
+                    <thead><tr><th>Asset</th><th>Direction</th><th>Entry</th><th>Current</th><th>Qty</th><th>Entry Value</th><th>Current Value</th><th>P/L</th><th>Return</th></tr></thead>
+                    <tbody id="positionsTable"><tr><td colspan="9" style="text-align:center;padding:20px;">Loading...</td></tr></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="intelligence" class="section">
+      <div class="intel-wrap">
+        <div class="intel-controls">
+          <div class="controls">
+            <select id="categorySelect"><option value="">All Categories</option></select>
+            <select id="subcategorySelect"><option value="">All Sub-Industries</option></select>
+            <input id="searchInput" placeholder="Search sources" />
+            <div class="actions">
+              <button class="send-btn" onclick="loadSources()">Search</button>
+              <button class="schedule-btn" onclick="scheduleModal()">Schedule Crawl</button>
+            </div>
+          </div>
+          <div class="sources"><div style="margin-bottom:8px;color:#9aa2b8;font-size:12px;">Sources: <span id="sourceCount">0</span></div><div id="sourcesList"></div></div>
+        </div>
+        <div class="preview">
+          <div class="preview-header"><div style="font-weight:600;font-size:12px;color:#9aa2b8;">Preview</div><div id="selectedLabel" style="font-size:12px;color:#9aa2b8;"></div></div>
+          <div class="preview-content"><div style="text-align:center;padding:40px;color:#9aa2b8;">Select a source to preview details</div></div>
+        </div>
+      </div>
+    </div>
+    <div id="predictions" class="section">
+      <div class="main" style="width:100%">
+        <div class="header"><div class="header-title">Predictions</div></div>
+        <div style="padding:16px 20px;color:#9aa2b8;">Coming soon: Win rate, pending vs resolved, top movers, and P/L curves.</div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const CHAT_ENDPOINT = 'http://localhost:8001/api/chat';
+    const PORTFOLIO_ENDPOINT = 'http://localhost:8001/api/portfolio';
+    const INTEL_BASE = 'http://localhost:8002';
+    let perfChart = null, allocChart = null; let currentSources = []; let selectedSourceId = null;
+    document.querySelectorAll('.tab').forEach(tab => { tab.addEventListener('click', () => { document.querySelectorAll('.tab').forEach(t => t.classList.remove('active')); document.querySelectorAll('.section').forEach(s => s.classList.remove('active')); tab.classList.add('active'); document.getElementById(tab.dataset.tab).classList.add('active'); }); });
+    function initCharts() { const perfCtx = document.getElementById('performanceChart').getContext('2d'); perfChart = new Chart(perfCtx, { type: 'line', data: { labels: ['Day 1','Day 2','Day 3','Day 4','Day 5','Today'], datasets: [{ label: 'Portfolio', data: [5000,5120,5080,5250,5180,5340], borderColor: '#5078b4', backgroundColor: 'rgba(80,120,180,0.03)', borderWidth: 1.5, fill: true, tension: 0.3, pointRadius: 3, pointBackgroundColor: '#5078b4', pointBorderColor: '#0a0e27', pointBorderWidth: 1, pointHoverRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: 'rgba(255,255,255,0.02)', drawBorder: false }, ticks: { color: '#8b92a9', font: { size: 10 } } }, x: { grid: { display: false }, ticks: { color: '#8b92a9', font: { size: 10 } } } } } }); const allocCtx = document.getElementById('allocationChart').getContext('2d'); allocChart = new Chart(allocCtx, { type: 'doughnut', data: { labels: ['Crypto','Stocks','Commodities','Indices','Forex','Cash'], datasets: [{ data: [25,28,18,12,5,12], backgroundColor: ['rgba(80,120,180,0.7)','rgba(100,140,200,0.7)','rgba(60,100,160,0.7)','rgba(120,160,220,0.7)','rgba(70,110,170,0.7)','rgba(40,60,100,0.7)'], borderColor: '#0a0e27', borderWidth: 2 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#8b92a9', font: { size: 10 }, padding: 8, usePointStyle: true } } } } }); }
+    async function loadData() { try { const res = await fetch(PORTFOLIO_ENDPOINT); const data = await res.json(); const val = data.total_value.toFixed(2); const ret = data.total_pnl_pct; const pnl = data.total_pnl; document.getElementById('headerValue').textContent = `$${val}`; document.getElementById('statValue').textContent = `$${Math.round(data.total_value).toLocaleString()}`; const returnEl = document.getElementById('headerReturn'); returnEl.textContent = `${ret >= 0 ? '+' : ''}${ret.toFixed(2)}%`; returnEl.className = `metric-value ${ret >= 0 ? 'positive' : 'negative'}`; const pnlEl = document.getElementById('statPnL'); pnlEl.textContent = `${pnl >= 0 ? '+' : ''}$${Math.round(pnl).toLocaleString()}`; pnlEl.className = `metric-value ${pnl >= 0 ? 'positive' : 'negative'}`; document.getElementById('headerPositions').textContent = data.num_positions; document.getElementById('statPositions').textContent = data.num_positions; const tbody = document.getElementById('positionsTable'); if (!data.positions || data.positions.length === 0) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;">No open positions</td></tr>'; } else { tbody.innerHTML = data.positions.map(p => (`<tr><td>${p.asset}</td><td>${p.direction}</td><td>$${p.entry_price.toFixed(2)}</td><td>$${p.current_price.toFixed(2)}</td><td>${p.quantity.toFixed(4)}</td><td>$${p.entry_value.toFixed(0)}</td><td>$${p.current_value.toFixed(0)}</td><td class="${p.pnl >= 0 ? 'positive' : 'negative'}">${p.pnl >= 0 ? '+' : ''}$${p.pnl.toFixed(0)}</td><td class="${p.pnl_pct >= 0 ? 'positive' : 'negative'}">${p.pnl_pct >= 0 ? '+' : ''}${p.pnl_pct.toFixed(1)}%</td></tr>`)).join(''); } } catch (e) { console.error('Error loading data:', e); } }
+    async function sendMessage() { const input = document.getElementById('chatInput'); const msg = input.value.trim(); if (!msg) return; input.value=''; try { await fetch(CHAT_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role: 'user', text: msg }) }); await fetchChat(); } catch (err) { console.error('Chat send failed', err); } }
+    async function fetchChat() { try { const res = await fetch(CHAT_ENDPOINT); const data = await res.json(); renderChat(data.messages || []); } catch (err) { console.error('Chat fetch failed', err); } }
+    function renderChat(messages) { const box = document.getElementById('chatMessages'); box.innerHTML=''; messages.forEach(m => { const roleClass = m.role === 'user' ? 'user' : 'system'; const el = document.createElement('div'); el.className = `message ${roleClass}`; el.innerHTML = `<div class="message-bubble">${m.text}</div>`; box.appendChild(el); }); box.scrollTop = box.scrollHeight; }
+    function setMode(ev, mode) { document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active')); ev.target.classList.add('active'); const box = document.getElementById('chatMessages'); const el = document.createElement('div'); el.className = 'message system'; el.innerHTML = `<div class="message-bubble">Switched to ${mode} mode.</div>`; box.appendChild(el); box.scrollTop = box.scrollHeight; }
+    async function loadCategories() { try { const res = await fetch(`${INTEL_BASE}/api/intelligence/categories`); const categories = await res.json(); const categorySelect = document.getElementById('categorySelect'); categorySelect.innerHTML = '<option value="">All Categories</option>'; for (const [category, subcats] of Object.entries(categories)) { const total = Object.values(subcats).reduce((sum, count) => sum + count, 0); const opt = document.createElement('option'); opt.value = category; opt.textContent = `${category} (${total})`; categorySelect.appendChild(opt); } categorySelect.onchange = () => { loadSubcategories(categories); loadSources(); }; loadSubcategories(categories); } catch (err) { console.error('Failed to load categories', err); } }
+    function loadSubcategories(categories) { const category = document.getElementById('categorySelect').value; const subcategorySelect = document.getElementById('subcategorySelect'); subcategorySelect.innerHTML = '<option value="">All Sub-Industries</option>'; if (category && categories[category]) { for (const [subcat, count] of Object.entries(categories[category])) { const opt = document.createElement('option'); opt.value = subcat; opt.textContent = `${subcat} (${count})`; subcategorySelect.appendChild(opt); } } }
+    async function loadSources() { const category = document.getElementById('categorySelect').value; const subcategory = document.getElementById('subcategorySelect').value; const search = document.getElementById('searchInput').value; try { const params = new URLSearchParams(); if (category) params.append('category', category); if (subcategory) params.append('subcategory', subcategory); if (search) params.append('search', search); const res = await fetch(`${INTEL_BASE}/api/intelligence/sources?${params}`); const data = await res.json(); currentSources = data.sources || []; document.getElementById('sourceCount').textContent = data.count; const list = document.getElementById('sourcesList'); if (currentSources.length === 0) { list.innerHTML = '<div style="text-align:center;padding:40px;color:#9aa2b8;">No sources found</div>'; return; } list.innerHTML = currentSources.map(source => (`<div class="source-item" data-id="${source.id}" onclick="selectSource(event, ${source.id})"><div style="font-weight:600;color:#eef2ff">${source.url}</div><div style="font-size:12px;color:#9aa2b8">${source.key}</div></div>`)).join(''); } catch (err) { console.error('Failed to load sources', err); } }
+    async function selectSource(ev, id) { selectedSourceId = id; document.querySelectorAll('.source-item').forEach(el => el.classList.remove('active')); const target = ev.currentTarget || ev.target.closest('.source-item'); if (target) target.classList.add('active'); try { const res = await fetch(`${INTEL_BASE}/api/intelligence/preview/${id}`); const data = await res.json(); const content = document.querySelector('.preview-content'); content.innerHTML = `<div><div style=\"margin-bottom:12px;\"><strong>ID:</strong> ${data.id}<br><strong>Key:</strong> ${data.key}</div><div style=\"margin-bottom:8px;\"><strong>Raw Data:</strong></div><pre>${JSON.stringify(data.data, null, 2)}</pre></div>`; } catch (err) { console.error('Failed to load preview', err); } }
+    function scheduleModal() { alert('Schedule crawl feature coming soon! Set recurring crawls per category.'); }
+    document.addEventListener('DOMContentLoaded', () => { initCharts(); loadData(); setInterval(loadData, 10000); document.getElementById('chatInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); }); fetchChat(); setInterval(fetchChat, 5000); loadCategories(); loadSources(); document.getElementById('searchInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') loadSources(); }); });
+  </script>
+</body>
+</html>

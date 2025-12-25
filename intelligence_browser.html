@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intelligence Browser</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #05060b;
+            color: #f5f7fb;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 13px;
+            line-height: 1.5;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            height: 100vh;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 2px;
+            padding: 16px 20px 0 20px;
+            background: rgba(12, 14, 22, 0.55);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .tab {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-bottom: none;
+            border-radius: 6px 6px 0 0;
+            padding: 10px 20px;
+            color: #9aa2b8;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-decoration: none;
+        }
+
+        .tab:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: #d7dbea;
+        }
+
+        .tab.active {
+            background: rgba(31, 107, 255, 0.2);
+            border-color: rgba(31, 107, 255, 0.5);
+            color: #f5f7fb;
+        }
+
+        .header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            background: rgba(12, 14, 22, 0.55);
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        select, input {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: #f5f7fb;
+            font-size: 12px;
+            font-family: inherit;
+        }
+
+        select {
+            min-width: 200px;
+        }
+
+        input[type="search"] {
+            flex: 1;
+            max-width: 400px;
+        }
+
+        input::placeholder {
+            color: rgba(255, 255, 255, 0.25);
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: rgba(31, 107, 255, 0.5);
+        }
+
+        .btn {
+            background: rgba(31, 107, 255, 0.3);
+            border: 1px solid rgba(31, 107, 255, 0.6);
+            border-radius: 6px;
+            padding: 8px 14px;
+            color: #d7dbea;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .btn:hover {
+            background: rgba(31, 107, 255, 0.55);
+            border-color: rgba(31, 107, 255, 0.8);
+            color: #f5f7fb;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 1px;
+            background: #0b0d15;
+            overflow: hidden;
+        }
+
+        .sources-panel {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sources-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            background: rgba(12, 14, 22, 0.5);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: #9aa2b8;
+            font-weight: 600;
+        }
+
+        .sources-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+
+        .source-item {
+            background: rgba(12, 14, 22, 0.72);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .source-item:hover {
+            border-color: rgba(31, 107, 255, 0.4);
+            background: rgba(12, 14, 22, 0.85);
+        }
+
+        .source-item.active {
+            border-color: rgba(31, 107, 255, 0.7);
+            background: rgba(31, 107, 255, 0.1);
+        }
+
+        .source-url {
+            font-size: 11px;
+            color: #d7dbea;
+            word-break: break-all;
+            margin-bottom: 4px;
+        }
+
+        .source-key {
+            font-size: 10px;
+            color: #9aa2b8;
+        }
+
+        .preview-panel {
+            background: rgba(12, 14, 22, 0.7);
+            border-left: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .preview-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: #9aa2b8;
+            font-weight: 600;
+        }
+
+        .preview-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .preview-empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #9aa2b8;
+            font-size: 12px;
+        }
+
+        .preview-data {
+            font-size: 11px;
+            line-height: 1.6;
+        }
+
+        .preview-data pre {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 4px;
+            padding: 12px;
+            overflow-x: auto;
+            color: #3dfc7c;
+            font-size: 10px;
+        }
+
+        .stat-badge {
+            display: inline-block;
+            background: rgba(31, 107, 255, 0.2);
+            border: 1px solid rgba(31, 107, 255, 0.4);
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 10px;
+            font-weight: 600;
+            color: #d7dbea;
+            margin-left: 8px;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.12);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="tabs">
+            <a href="http://localhost:8001/command_center.html" class="tab">Trading Dashboard</a>
+            <a href="http://localhost:8002/" class="tab active">Intelligence Browser</a>
+            <a href="#" class="tab" onclick="alert('Coming soon: Prediction Analytics'); return false;">Predictions</a>
+            <a href="#" class="tab" onclick="alert('Coming soon: Portfolio Analysis'); return false;">Portfolio</a>
+        </div>
+
+        <div class="header">
+            <div class="header-title">Intelligence Browser</div>
+            <div class="controls">
+                <select id="categorySelect">
+                    <option value="">All Categories</option>
+                </select>
+                <select id="subcategorySelect">
+                    <option value="">All Sub-Industries</option>
+                </select>
+                <input type="search" id="searchInput" placeholder="Search URLs, keywords...">
+                <button class="btn" onclick="loadSources()">Search</button>
+                <button class="btn" onclick="scheduleModal()">Schedule Crawl</button>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="sources-panel">
+                <div class="sources-header">
+                    Sources <span class="stat-badge" id="sourceCount">0</span>
+                </div>
+                <div class="sources-list" id="sourcesList">
+                    <div style="text-align: center; padding: 40px; color: #9aa2b8;">
+                        Loading sources...
+                    </div>
+                </div>
+            </div>
+
+            <div class="preview-panel">
+                <div class="preview-header">Preview</div>
+                <div class="preview-content">
+                    <div class="preview-empty">Select a source to preview</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8002';
+        let currentSources = [];
+        let selectedSourceId = null;
+
+        async function loadCategories() {
+            try {
+                const res = await fetch(`${API_BASE}/api/intelligence/categories`);
+                const categories = await res.json();
+
+                const categorySelect = document.getElementById('categorySelect');
+                categorySelect.innerHTML = '<option value="">All Categories</option>';
+
+                for (const [category, subcats] of Object.entries(categories)) {
+                    const total = Object.values(subcats).reduce((sum, count) => sum + count, 0);
+                    const opt = document.createElement('option');
+                    opt.value = category;
+                    opt.textContent = `${category} (${total})`;
+                    categorySelect.appendChild(opt);
+                }
+
+                categorySelect.addEventListener('change', () => {
+                    loadSubcategories(categories);
+                    loadSources();
+                });
+
+                loadSubcategories(categories);
+            } catch (err) {
+                console.error('Failed to load categories', err);
+            }
+        }
+
+        function loadSubcategories(categories) {
+            const category = document.getElementById('categorySelect').value;
+            const subcategorySelect = document.getElementById('subcategorySelect');
+            subcategorySelect.innerHTML = '<option value="">All Sub-Industries</option>';
+
+            if (category && categories[category]) {
+                for (const [subcat, count] of Object.entries(categories[category])) {
+                    const opt = document.createElement('option');
+                    opt.value = subcat;
+                    opt.textContent = `${subcat} (${count})`;
+                    subcategorySelect.appendChild(opt);
+                }
+            }
+        }
+
+        async function loadSources() {
+            const category = document.getElementById('categorySelect').value;
+            const subcategory = document.getElementById('subcategorySelect').value;
+            const search = document.getElementById('searchInput').value;
+
+            try {
+                const params = new URLSearchParams();
+                if (category) params.append('category', category);
+                if (subcategory) params.append('subcategory', subcategory);
+                if (search) params.append('search', search);
+
+                const res = await fetch(`${API_BASE}/api/intelligence/sources?${params}`);
+                const data = await res.json();
+
+                currentSources = data.sources || [];
+                document.getElementById('sourceCount').textContent = data.count;
+
+                const list = document.getElementById('sourcesList');
+                if (currentSources.length === 0) {
+                    list.innerHTML = '<div style="text-align: center; padding: 40px; color: #9aa2b8;">No sources found</div>';
+                    return;
+                }
+
+                list.innerHTML = currentSources.map(source => `
+                    <div class="source-item" onclick="selectSource(${source.id})">
+                        <div class="source-url">${source.url}</div>
+                        <div class="source-key">${source.key}</div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error('Failed to load sources', err);
+            }
+        }
+
+        async function selectSource(id) {
+            selectedSourceId = id;
+
+            document.querySelectorAll('.source-item').forEach(el => {
+                el.classList.remove('active');
+            });
+            event.target.closest('.source-item').classList.add('active');
+
+            try {
+                const res = await fetch(`${API_BASE}/api/intelligence/preview/${id}`);
+                const data = await res.json();
+
+                const content = document.querySelector('.preview-content');
+                content.innerHTML = `
+                    <div class="preview-data">
+                        <div style="margin-bottom: 12px;">
+                            <strong>ID:</strong> ${data.id}<br>
+                            <strong>Key:</strong> ${data.key}
+                        </div>
+                        <div style="margin-bottom: 8px;"><strong>Raw Data:</strong></div>
+                        <pre>${JSON.stringify(data.data, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (err) {
+                console.error('Failed to load preview', err);
+            }
+        }
+
+        function scheduleModal() {
+            alert('Schedule crawl feature coming soon! This will allow you to set recurring crawls for selected categories.');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadCategories();
+            loadSources();
+
+            document.getElementById('searchInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') loadSources();
+            });
+        });
+    </script>
+</body>
+</html>
