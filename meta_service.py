@@ -607,6 +607,176 @@ async def crawl_enqueue(request: Request):
     return JSONResponse({"count": len(results), "matches": matches})
 
 
+# ===== UNIFIED ENDPOINTS FOR GATEWAY COMPATIBILITY =====
+
+@app.post("/api/predict")
+async def predict_endpoint(asset: str = None, prediction_type: str = "price", confidence: int = 50):
+    """Predict endpoint - historical pattern analysis"""
+    conn = databases.Database(DB_PATH)
+    await conn.connect()
+    
+    try:
+        # Query historical predictions
+        query = "SELECT COUNT(*) FROM predictions WHERE status = 'pending'"
+        pending_predictions = await conn.fetch_val(query)
+        
+        return {
+            'success': True,
+            'asset': asset,
+            'prediction_type': prediction_type,
+            'confidence': confidence,
+            'pending_predictions': pending_predictions,
+            'source': 'meta'
+        }
+    finally:
+        await conn.disconnect()
+
+
+@app.post("/api/crawl")
+async def crawl_endpoint(url: str = None, depth: int = 1):
+    """Crawl endpoint - metadata and job management"""
+    conn = databases.Database(DB_PATH)
+    await conn.connect()
+    
+    try:
+        # Create crawl job
+        query = """
+            INSERT INTO jobs (type, action, payload, status)
+            VALUES (:type, :action, :payload, :status)
+        """
+        values = {
+            "type": "crawl",
+            "action": "url_crawl",
+            "payload": json.dumps({"url": url, "depth": depth}),
+            "status": "pending"
+        }
+        job_id = await conn.execute(query, values)
+        
+        return {
+            'success': True,
+            'job_id': job_id,
+            'url': url,
+            'depth': depth,
+            'status': 'queued',
+            'source': 'meta'
+        }
+    finally:
+        await conn.disconnect()
+
+
+@app.post("/api/simulate")
+async def simulate_endpoint(scenario: str, parameters: dict = None):
+    """Simulate endpoint - scenario job creation"""
+    conn = databases.Database(DB_PATH)
+    await conn.connect()
+    
+    try:
+        # Create simulation job
+        query = """
+            INSERT INTO jobs (type, action, payload, status)
+            VALUES (:type, :action, :payload, :status)
+        """
+        values = {
+            "type": "simulate",
+            "action": scenario,
+            "payload": json.dumps(parameters or {}),
+            "status": "pending"
+        }
+        job_id = await conn.execute(query, values)
+        
+        return {
+            'success': True,
+            'job_id': job_id,
+            'scenario': scenario,
+            'status': 'queued',
+            'source': 'meta'
+        }
+    finally:
+        await conn.disconnect()
+
+
+@app.get("/api/read/{resource}")
+async def read_endpoint(resource: str):
+    """Unified read endpoint"""
+    conn = databases.Database(DB_PATH)
+    await conn.connect()
+    
+    try:
+        if resource == 'memory':
+            query = "SELECT key, value FROM memory LIMIT 100"
+            rows = await conn.fetch(query)
+            return {"resource": resource, "count": len(rows), "data": rows}
+        elif resource == 'jobs':
+            query = "SELECT * FROM jobs ORDER BY created_at DESC LIMIT 50"
+            rows = await conn.fetch(query)
+            return {"resource": resource, "count": len(rows), "data": rows}
+        elif resource == 'predictions':
+            query = "SELECT * FROM predictions WHERE status = 'pending' LIMIT 50"
+            rows = await conn.fetch(query)
+            return {"resource": resource, "count": len(rows), "data": rows}
+        else:
+            raise HTTPException(status_code=404, detail=f"Resource {resource} not found")
+    finally:
+        await conn.disconnect()
+
+
+@app.post("/api/write/{resource}")
+async def write_endpoint(resource: str, payload: dict):
+    """Unified write endpoint"""
+    conn = databases.Database(DB_PATH)
+    await conn.connect()
+    
+    try:
+        if resource == 'memory':
+            query = """
+                INSERT OR REPLACE INTO memory (key, value)
+                VALUES (:key, :value)
+            """
+            values = {
+                "key": payload.get('key'),
+                "value": json.dumps(payload.get('value'))
+            }
+            await conn.execute(query, values)
+            return {"success": True, "resource": resource, "key": payload.get('key')}
+        else:
+            raise HTTPException(status_code=404, detail=f"Resource {resource} not found")
+    finally:
+        await conn.disconnect()
+
+
+@app.post("/api/analyze/{resource}")
+async def analyze_endpoint(resource: str, payload: dict):
+    """Unified analyze endpoint"""
+    conn = databases.Database(DB_PATH)
+    await conn.connect()
+    
+    try:
+        if resource == 'predictions':
+            query = "SELECT COUNT(*) as total, status FROM predictions GROUP BY status"
+            rows = await conn.fetch(query)
+            return {
+                'resource': resource,
+                'analysis': {
+                    'total_predictions': sum(r['total'] for r in rows),
+                    'by_status': {r['status']: r['total'] for r in rows}
+                }
+            }
+        elif resource == 'jobs':
+            query = "SELECT COUNT(*) as total, status FROM jobs GROUP BY status"
+            rows = await conn.fetch(query)
+            return {
+                'resource': resource,
+                'analysis': {
+                    'total_jobs': sum(r['total'] for r in rows),
+                    'by_status': {r['status']: r['total'] for r in rows}
+                }
+            }
+        else:
+            raise HTTPException(status_code=404, detail=f"Resource {resource} not found")
+    finally:
+        await conn.disconnect()
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))

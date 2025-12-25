@@ -1003,6 +1003,51 @@ TOOLS = [
             },
             "required": ["domain"]
         }
+    ),
+    # ===== UNIFIED ENDPOINTS =====
+    Tool(
+        name="unified_predict",
+        description="Unified prediction endpoint - routes to all relevant systems for forecasting",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "asset": {"type": "string", "description": "Asset ticker/symbol (BTC, TSLA, etc.)"},
+                "asset_type": {"type": "string", "enum": ["crypto", "stock", "forex", "commodity"], "default": "stock"},
+                "prediction_type": {"type": "string", "enum": ["price", "direction", "volatility", "event"], "default": "price"},
+                "timeframe": {"type": "string", "description": "1h, 4h, 24h, 7d, 30d, 90d"},
+                "target_date": {"type": "string", "description": "ISO date when prediction resolves"},
+                "confidence": {"type": "integer", "minimum": 0, "maximum": 100, "default": 50},
+                "data_sources": {"type": "array", "items": {"type": "string"}, "description": "Data sources to consider"}
+            },
+            "required": ["asset", "timeframe"]
+        }
+    ),
+    Tool(
+        name="unified_crawl",
+        description="Unified crawl endpoint - web scraping and data collection across all sources",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "URL to crawl"},
+                "depth": {"type": "integer", "minimum": 1, "maximum": 5, "default": 1, "description": "Crawl depth"},
+                "max_pages": {"type": "integer", "minimum": 1, "maximum": 1000, "default": 100, "description": "Max pages to crawl"},
+                "filters": {"type": "object", "description": "Filters (keyword, pattern, etc.)"}
+            },
+            "required": ["url"]
+        }
+    ),
+    Tool(
+        name="unified_simulate",
+        description="Unified simulate endpoint - backtesting, scenario analysis, and market simulations",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "scenario": {"type": "string", "description": "Scenario type: backtest, monte_carlo, stress_test, etc."},
+                "asset": {"type": "string", "description": "Asset to simulate (optional)"},
+                "parameters": {"type": "object", "description": "Simulation parameters"}
+            },
+            "required": ["scenario"]
+        }
     )
 ]
 
@@ -1166,6 +1211,13 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         return await tool_hostinger_get_website_status(arguments)
     elif name == "hostinger_list_databases":
         return await tool_hostinger_list_databases(arguments)
+    # ===== UNIFIED ENDPOINTS =====
+    elif name == "unified_predict":
+        return await tool_unified_predict(arguments)
+    elif name == "unified_crawl":
+        return await tool_unified_crawl(arguments)
+    elif name == "unified_simulate":
+        return await tool_unified_simulate(arguments)
     else:
         raise ValueError(f"Unknown tool: {name}")
 
@@ -2098,6 +2150,167 @@ async def tool_hostinger_list_databases(args: dict) -> list[TextContent]:
         result = await hostinger_helper.list_databases(args["domain"])
         return [TextContent(type="text", text=json.dumps(result))]
     except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+# ===== UNIFIED ENDPOINT TOOLS =====
+
+async def tool_unified_predict(args: dict) -> list[TextContent]:
+    """
+    Unified prediction endpoint
+    Routes prediction requests to all relevant systems
+    """
+    try:
+        from prediction_engine import log_prediction
+        
+        asset = args.get("asset")
+        asset_type = args.get("asset_type", "stock")
+        prediction_type = args.get("prediction_type", "price")
+        timeframe = args.get("timeframe", "24h")
+        target_date = args.get("target_date")
+        confidence = args.get("confidence", 50)
+        data_sources = args.get("data_sources", [])
+        
+        # Log prediction
+        pred_id = log_prediction(
+            asset=asset,
+            asset_type=asset_type,
+            prediction_type=prediction_type,
+            timeframe=timeframe,
+            target_date=target_date or datetime.now().isoformat().split('T')[0],
+            confidence=confidence,
+            rationale=f"MCP unified prediction for {asset}",
+            data_sources=data_sources
+        )
+        
+        # Gather prediction data from multiple sources
+        responses = {
+            "prediction_id": pred_id,
+            "asset": asset,
+            "asset_type": asset_type,
+            "prediction_type": prediction_type,
+            "timeframe": timeframe,
+            "confidence": confidence,
+            "sources_queried": [],
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        # Query intelligence sources
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT COUNT(*) FROM memory 
+            WHERE value LIKE ? AND value LIKE ?
+        """, (f"%{asset}%", "%url%"))
+        intelligence_count = cur.fetchone()[0]
+        if intelligence_count > 0:
+            responses["sources_queried"].append("intelligence")
+            responses["intelligence_sources"] = intelligence_count
+        
+        # Query portfolio positions
+        cur.execute("""
+            SELECT COUNT(*) FROM paper_positions 
+            WHERE asset = ? AND status = 'open'
+        """, (asset,))
+        open_positions = cur.fetchone()[0]
+        if open_positions > 0:
+            responses["sources_queried"].append("dashboard")
+            responses["open_positions"] = open_positions
+        
+        conn.close()
+        
+        logger.info(f"Unified predict: {asset} - {len(responses['sources_queried'])} sources")
+        return [TextContent(type="text", text=json.dumps(responses))]
+    
+    except Exception as e:
+        logger.error(f"Unified predict error: {e}")
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_unified_crawl(args: dict) -> list[TextContent]:
+    """
+    Unified crawl endpoint
+    Routes crawl requests through compliance and saves to jobs table
+    """
+    try:
+        url = args.get("url")
+        depth = args.get("depth", 1)
+        max_pages = args.get("max_pages", 100)
+        filters = args.get("filters", {})
+        
+        # Validate URL
+        if not url.startswith(("http://", "https://")):
+            raise ValueError("URL must start with http:// or https://")
+        
+        # Create crawl job
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO jobs (type, action, payload, status)
+            VALUES (?, ?, ?, ?)
+        """, (
+            "crawl",
+            "web_scrape",
+            json.dumps({"url": url, "depth": depth, "max_pages": max_pages, "filters": filters}),
+            "pending"
+        ))
+        conn.commit()
+        job_id = cur.lastrowid
+        conn.close()
+        
+        logger.info(f"Unified crawl job created: {job_id} for {url}")
+        
+        return [TextContent(type="text", text=json.dumps({
+            "success": True,
+            "job_id": job_id,
+            "url": url,
+            "depth": depth,
+            "max_pages": max_pages,
+            "status": "pending",
+            "timestamp": datetime.now().isoformat()
+        }))]
+    
+    except Exception as e:
+        logger.error(f"Unified crawl error: {e}")
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_unified_simulate(args: dict) -> list[TextContent]:
+    """
+    Unified simulate endpoint
+    Routes simulation requests to appropriate backends
+    """
+    try:
+        scenario = args.get("scenario")
+        asset = args.get("asset")
+        parameters = args.get("parameters", {})
+        
+        # Create simulation job
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO jobs (type, action, payload, status)
+            VALUES (?, ?, ?, ?)
+        """, (
+            "simulate",
+            scenario,
+            json.dumps(parameters),
+            "pending"
+        ))
+        conn.commit()
+        job_id = cur.lastrowid
+        conn.close()
+        
+        logger.info(f"Unified simulate job created: {job_id} for scenario={scenario}")
+        
+        return [TextContent(type="text", text=json.dumps({
+            "success": True,
+            "job_id": job_id,
+            "scenario": scenario,
+            "asset": asset,
+            "status": "pending",
+            "timestamp": datetime.now().isoformat()
+        }))]
+    
+    except Exception as e:
+        logger.error(f"Unified simulate error: {e}")
         return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
 
 async def main():

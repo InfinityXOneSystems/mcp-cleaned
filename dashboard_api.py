@@ -353,6 +353,136 @@ def start_manual_mode():
     }
 
 
+# ===== UNIFIED ENDPOINTS FOR GATEWAY COMPATIBILITY =====
+
+@app.post("/api/predict")
+async def predict(asset: str, confidence: int = 50):
+    """Predict endpoint - portfolio context"""
+    from prediction_engine import log_prediction
+    
+    pred_id = log_prediction(
+        asset=asset,
+        asset_type='stock',
+        prediction_type='price',
+        timeframe='24h',
+        target_date=datetime.now().isoformat().split('T')[0],
+        confidence=confidence,
+        rationale=f"Dashboard context prediction for {asset}"
+    )
+    
+    # Get portfolio impact analysis
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) FROM paper_positions WHERE asset = ? AND status = 'open'", (asset,))
+    open_positions = cur.fetchone()[0]
+    conn.close()
+    
+    return {
+        'success': True,
+        'prediction_id': pred_id,
+        'asset': asset,
+        'open_positions': open_positions,
+        'source': 'dashboard'
+    }
+
+
+@app.post("/api/crawl")
+async def crawl(url: str, depth: int = 1):
+    """Crawl endpoint - market data collection"""
+    import subprocess
+    import json as js
+    
+    # Enqueue crawl job
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO jobs (type, action, payload, status)
+        VALUES (?, ?, ?, ?)
+    """, ('crawl', 'market_data', js.dumps({'url': url, 'depth': depth}), 'pending'))
+    conn.commit()
+    job_id = cur.lastrowid
+    conn.close()
+    
+    return {
+        'success': True,
+        'job_id': job_id,
+        'url': url,
+        'depth': depth,
+        'status': 'queued',
+        'source': 'dashboard'
+    }
+
+
+@app.post("/api/simulate")
+async def simulate(scenario: str, asset: Optional[str] = None, parameters: Optional[dict] = None):
+    """Simulate endpoint - backtesting and scenario analysis"""
+    import json as js
+    
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO jobs (type, action, payload, status)
+        VALUES (?, ?, ?, ?)
+    """, ('simulate', scenario, js.dumps(parameters or {}), 'pending'))
+    conn.commit()
+    job_id = cur.lastrowid
+    conn.close()
+    
+    return {
+        'success': True,
+        'job_id': job_id,
+        'scenario': scenario,
+        'asset': asset,
+        'status': 'queued',
+        'source': 'dashboard'
+    }
+
+
+@app.get("/api/read/{resource}")
+async def read_resource(resource: str):
+    """Unified read endpoint"""
+    if resource == 'portfolio':
+        return await get_portfolio()
+    elif resource == 'bank':
+        return await get_bank_balance()
+    else:
+        raise HTTPException(status_code=404, detail=f"Resource {resource} not found")
+
+
+@app.post("/api/write/{resource}")
+async def write_resource(resource: str, payload: dict):
+    """Unified write endpoint"""
+    if resource == 'bank':
+        return await set_balance(payload.get('amount', 0))
+    elif resource == 'position':
+        return await add_position(
+            asset=payload.get('asset'),
+            direction=payload.get('direction'),
+            price=payload.get('price'),
+            quantity=payload.get('quantity')
+        )
+    else:
+        raise HTTPException(status_code=404, detail=f"Resource {resource} not found")
+
+
+@app.post("/api/analyze/{resource}")
+async def analyze_resource(resource: str, payload: dict):
+    """Unified analyze endpoint"""
+    if resource == 'portfolio':
+        portfolio = await get_portfolio()
+        return {
+            'resource': resource,
+            'analysis': {
+                'total_positions': portfolio['num_positions'],
+                'total_value': portfolio['total_value'],
+                'total_pnl': portfolio['total_pnl'],
+                'total_pnl_pct': portfolio['total_pnl_pct']
+            }
+        }
+    else:
+        raise HTTPException(status_code=404, detail=f"Resource {resource} not found")
+
+
 if __name__ == '__main__':
     import uvicorn
     uvicorn.run(app, host='0.0.0.0', port=8001)

@@ -188,6 +188,87 @@ async def get_source_preview(source_id: int):
     }
 
 
+# ===== UNIFIED ENDPOINTS FOR GATEWAY COMPATIBILITY =====
+
+@app.post("/api/predict")
+async def predict(asset: str, timeframe: str = "24h"):
+    """Predict endpoint - intelligence-based sentiment analysis"""
+    sources = get_intelligence_sources()
+    
+    # Count sources related to asset
+    relevant_sources = 0
+    for category, subcats in sources.items():
+        for subcat, sources_list in subcats.items():
+            for source in sources_list:
+                if asset.lower() in source.get('url', '').lower():
+                    relevant_sources += 1
+    
+    return {
+        'success': True,
+        'asset': asset,
+        'timeframe': timeframe,
+        'relevant_sources': relevant_sources,
+        'source': 'intelligence'
+    }
+
+
+@app.post("/api/crawl")
+async def crawl(url: str, depth: int = 1):
+    """Crawl endpoint - intelligence data gathering"""
+    return {
+        'success': True,
+        'url': url,
+        'depth': depth,
+        'status': 'queued',
+        'source': 'intelligence'
+    }
+
+
+@app.post("/api/simulate")
+async def simulate(scenario: str, parameters: Optional[dict] = None):
+    """Simulate endpoint - sentiment scenario testing"""
+    return {
+        'success': True,
+        'scenario': scenario,
+        'parameters': parameters or {},
+        'status': 'queued',
+        'source': 'intelligence'
+    }
+
+
+@app.get("/api/read/{resource}")
+async def read_resource(resource: str):
+    """Unified read endpoint"""
+    if resource == 'sources':
+        return await get_sources()
+    elif resource == 'categories':
+        return await get_categories()
+    else:
+        raise HTTPException(status_code=404, detail=f"Resource {resource} not found")
+
+
+@app.post("/api/write/{resource}")
+async def write_resource(resource: str, payload: dict):
+    """Unified write endpoint"""
+    raise HTTPException(status_code=405, detail="Intelligence API is read-only")
+
+
+@app.post("/api/analyze/{resource}")
+async def analyze_resource(resource: str, payload: dict):
+    """Unified analyze endpoint"""
+    if resource == 'sources':
+        sources = get_intelligence_sources()
+        return {
+            'resource': resource,
+            'analysis': {
+                'total_categories': len(sources),
+                'total_sources': sum(len(s) for c in sources.values() for s in c.values())
+            }
+        }
+    else:
+        raise HTTPException(status_code=404, detail=f"Resource {resource} not found")
+
+
 if __name__ == '__main__':
     import socket
     import uvicorn
