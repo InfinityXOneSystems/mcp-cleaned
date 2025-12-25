@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Platinum Finding Services - Intelligence Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1d3a 100%);
+            color: #e0e0e0;
+            padding: 2rem;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(90deg, #00d4ff, #7b2ff7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle {
+            color: #888;
+            margin-bottom: 2rem;
+            font-size: 0.95rem;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+        }
+        .stat-card h3 {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #999;
+            margin-bottom: 0.5rem;
+        }
+        .stat-card .value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #00d4ff;
+        }
+        .category-section {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+        }
+        .category-section h2 {
+            margin-bottom: 1rem;
+            color: #fff;
+            font-size: 1.3rem;
+        }
+        .source-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+        .source-card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        .source-card .name {
+            font-weight: 600;
+            color: #00d4ff;
+            margin-bottom: 0.3rem;
+        }
+        .source-card .count {
+            color: #7b2ff7;
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+        .source-card .urls {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 0.5rem;
+            max-height: 80px;
+            overflow: hidden;
+        }
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-top: 0.5rem;
+        }
+        .badge-business { background: rgba(0, 212, 255, 0.2); color: #00d4ff; }
+        .badge-real-estate { background: rgba(123, 47, 247, 0.2); color: #7b2ff7; }
+        .badge-social { background: rgba(255, 107, 107, 0.2); color: #ff6b6b; }
+        .badge-county { background: rgba(255, 195, 0, 0.2); color: #ffc300; }
+        .badge-news { background: rgba(46, 213, 115, 0.2); color: #2ed573; }
+        .footer {
+            text-align: center;
+            margin-top: 3rem;
+            color: #666;
+            font-size: 0.85rem;
+        }
+        .timestamp {
+            color: #888;
+            font-size: 0.8rem;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Platinum Finding Services</h1>
+        <div class="subtitle">Real-Time Lead Intelligence Engine • Powered by Multi-Source Crawl + AI Analysis</div>
+        <div class="timestamp" id="timestamp"></div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Total URLs Crawled</h3>
+                <div class="value" id="totalUrls">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Data Sources Active</h3>
+                <div class="value" id="totalSources">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Jobs Completed</h3>
+                <div class="value" id="jobsDone">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Coverage Areas</h3>
+                <div class="value" id="categories">-</div>
+            </div>
+        </div>
+
+        <div id="categoriesContainer"></div>
+
+        <div class="footer">
+            Generated for Platinum Finding Services Partner Demo • December 2024<br>
+            <em>Data refreshes in real-time as crawlers complete</em>
+        </div>
+    </div>
+
+    <script>
+        fetch('platinum_demo_export.json')
+            .then(r => r.json())
+            .then(data => {
+                // Populate stats
+                document.getElementById('totalUrls').textContent = data.summary.total_urls_crawled.toLocaleString();
+                document.getElementById('totalSources').textContent = data.summary.total_namespaces;
+                document.getElementById('jobsDone').textContent = data.summary.job_stats.done.jobs;
+                document.getElementById('categories').textContent = Object.keys(data.categories).filter(k => data.categories[k].length > 0).length;
+                document.getElementById('timestamp').textContent = `Last updated: ${new Date(data.generated_at).toLocaleString()}`;
+
+                // Render categories
+                const container = document.getElementById('categoriesContainer');
+                const categoryLabels = {
+                    business_loans: { title: '💼 Business Loans & Financing', badge: 'badge-business' },
+                    real_estate: { title: '🏠 Real Estate & Property Intelligence', badge: 'badge-real-estate' },
+                    social_sentiment: { title: '💬 Social Sentiment & Community Signals', badge: 'badge-social' },
+                    county_records: { title: '📋 County Records & Public Data', badge: 'badge-county' },
+                    news: { title: '📰 Local Business & Real Estate News', badge: 'badge-news' }
+                };
+
+                for (const [catKey, catData] of Object.entries(data.categories)) {
+                    if (catData.length === 0) continue;
+
+                    const section = document.createElement('div');
+                    section.className = 'category-section';
+
+                    const header = document.createElement('h2');
+                    header.textContent = categoryLabels[catKey].title;
+                    section.appendChild(header);
+
+                    const grid = document.createElement('div');
+                    grid.className = 'source-grid';
+
+                    catData.forEach(source => {
+                        const card = document.createElement('div');
+                        card.className = 'source-card';
+                        card.innerHTML = `
+                            <div class="name">${source.namespace.replace(/_/g, ' ').toUpperCase()}</div>
+                            <div class="count">${source.url_count} URLs</div>
+                            <span class="badge ${categoryLabels[catKey].badge}">${catKey.replace('_', ' ')}</span>
+                            <div class="urls">${source.sample_urls.slice(0, 2).map(u => {
+                                const domain = new URL(u).hostname;
+                                return `<div>→ ${domain}</div>`;
+                            }).join('')}</div>
+                        `;
+                        grid.appendChild(card);
+                    });
+
+                    section.appendChild(grid);
+                    container.appendChild(section);
+                }
+            })
+            .catch(err => console.error('Error loading data:', err));
+    </script>
+</body>
+</html>

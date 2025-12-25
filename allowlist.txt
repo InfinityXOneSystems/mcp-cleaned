@@ -1,0 +1,59 @@
+# Complete allowlist for Platinum Finding Services crawl sources
+# Generated 2025-12-24
+
+# Federal/State
+sba.gov
+search.sunbiz.org
+floridapa.com
+aaptor.org
+bid4assets.com
+auction.com
+
+# Social/Community
+reddit.com
+twitter.com
+facebook.com
+youtube.com
+quickbooks.intuit.com
+community.xero.com
+biggerpockets.com
+zillow.com
+redfin.com
+score.org
+
+# Business News
+bizjournals.com
+tcpalm.com
+treasurecoastlocal.com
+
+# County - St Lucie
+stlucieco.gov
+stlucieclerk.com
+stluciechamber.org
+
+# County - Martin
+martin.fl.us
+martinclerk.com
+discover-martin.com
+pa.martin.fl.us
+
+# County - Palm Beach
+discover.pbcgov.org
+pbcgov.org
+mypalmbeachclerk.com
+pbctax.com
+pbcchamber.com
+bocachamber.com
+
+# County - Okeechobee
+co.okeechobee.fl.us
+okeechobeepafl.com
+
+# Search/Analytics
+trends.google.com
+google.com
+
+# Testing
+example.com
+gofundme.com
+equifax.com

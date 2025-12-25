@@ -1,0 +1,106 @@
+[
+    {
+        "county": "St Lucie County",
+        "base": "https://www.stlucieco.gov/",
+        "seeds": [
+            {
+                "name": "Property Appraiser",
+                "path": "property-appraiser"
+            },
+            {
+                "name": "Clerk of Court / Public Records",
+                "path": "clerk-of-court"
+            },
+            {
+                "name": "Tax Collector / Treasurer",
+                "path": "treasurer-tax-collector"
+            },
+            {
+                "name": "GIS / Parcel Viewer",
+                "path": "gis"
+            },
+            {
+                "name": "Building / Permits",
+                "path": "building"
+            }
+        ]
+    },
+    {
+        "county": "Martin County",
+        "base": "https://www.martin.fl.us/",
+        "seeds": [
+            {
+                "name": "Property Appraiser",
+                "path": "property-appraiser"
+            },
+            {
+                "name": "Clerk of Court / Public Records",
+                "path": "clerk-of-court"
+            },
+            {
+                "name": "Tax Collector",
+                "path": "tax-collector"
+            },
+            {
+                "name": "GIS / Parcel Viewer",
+                "path": "gis"
+            },
+            {
+                "name": "Permits / Inspections",
+                "path": "building"
+            }
+        ]
+    },
+    {
+        "county": "Palm Beach County",
+        "base": "https://discover.pbcgov.org/",
+        "seeds": [
+            {
+                "name": "Property Appraiser / PAPA",
+                "path": "papa"
+            },
+            {
+                "name": "Clerk & Comptroller / Public Records",
+                "path": "clerk"
+            },
+            {
+                "name": "Tax Collector",
+                "path": "taxcollector"
+            },
+            {
+                "name": "GIS / Parcel Viewer",
+                "path": "gis"
+            },
+            {
+                "name": "Permits / Building",
+                "path": "permits"
+            }
+        ]
+    },
+    {
+        "county": "Okeechobee County",
+        "base": "https://www.co.okeechobee.fl.us/",
+        "seeds": [
+            {
+                "name": "Property Appraiser",
+                "path": "property-appraiser"
+            },
+            {
+                "name": "Clerk of Court",
+                "path": "clerk"
+            },
+            {
+                "name": "Tax Collector",
+                "path": "tax-collector"
+            },
+            {
+                "name": "GIS / Parcel Viewer",
+                "path": "gis"
+            },
+            {
+                "name": "Permits",
+                "path": "building-permits"
+            }
+        ]
+    }
+]

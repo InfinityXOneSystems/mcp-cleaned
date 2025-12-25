@@ -1,2 +1,15 @@
 mcp
 httpx
+fastapi
+uvicorn
+databases
+aiosqlite
+beautifulsoup4
+lxml
+pyttsx3
+google-cloud-texttospeech
+google-auth
+google-cloud-secret-manager
+aiohttp
+aiodns
+

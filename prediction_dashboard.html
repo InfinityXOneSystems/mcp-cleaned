@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infinity X Intelligence - Prediction Tracker</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #0f0;
+            padding: 2rem;
+            line-height: 1.6;
+        }
+        .container { max-width: 1600px; margin: 0 auto; }
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 0 10px #0f0;
+        }
+        .subtitle {
+            color: #0a0;
+            margin-bottom: 2rem;
+            font-size: 0.9rem;
+        }
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background: rgba(0, 255, 0, 0.05);
+            border: 1px solid #0f0;
+        }
+        .stat {
+            text-align: center;
+        }
+        .stat-label {
+            font-size: 0.7rem;
+            color: #0a0;
+            text-transform: uppercase;
+        }
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+        }
+        .predictions-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 2rem;
+        }
+        .predictions-table th {
+            background: rgba(0, 255, 0, 0.1);
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 2px solid #0f0;
+            font-size: 0.85rem;
+        }
+        .predictions-table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid rgba(0, 255, 0, 0.2);
+        }
+        .predictions-table tr:hover {
+            background: rgba(0, 255, 0, 0.05);
+        }
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+        .badge-pending { background: rgba(255, 255, 0, 0.3); color: #ff0; }
+        .badge-correct { background: rgba(0, 255, 0, 0.3); color: #0f0; }
+        .badge-incorrect { background: rgba(255, 0, 0, 0.3); color: #f00; }
+        .badge-partial { background: rgba(255, 165, 0, 0.3); color: #fa0; }
+        .confidence {
+            display: inline-block;
+            width: 60px;
+            height: 8px;
+            background: rgba(0, 255, 0, 0.2);
+            position: relative;
+            vertical-align: middle;
+        }
+        .confidence-bar {
+            height: 100%;
+            background: #0f0;
+        }
+        .section {
+            margin-bottom: 3rem;
+        }
+        .section h2 {
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+            color: #0f0;
+            border-left: 4px solid #0f0;
+            padding-left: 0.5rem;
+        }
+        .rationale {
+            font-size: 0.8rem;
+            color: #0a0;
+            max-width: 400px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 3rem;
+            color: #0a0;
+            font-size: 0.8rem;
+        }
+        .blink {
+            animation: blink 1s infinite;
+        }
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>▸ INFINITY X INTELLIGENCE</h1>
+        <div class="subtitle">PREDICTION ENGINE v1.0 // BUILDING VERIFIABLE TRACK RECORD <span class="blink">█</span></div>
+        
+        <div class="stats-bar" id="stats">
+            <div class="stat">
+                <div class="stat-label">Total</div>
+                <div class="stat-value" id="total">-</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Pending</div>
+                <div class="stat-value" id="pending">-</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Resolved</div>
+                <div class="stat-value" id="resolved">-</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Accuracy</div>
+                <div class="stat-value" id="accuracy">-</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Avg Confidence</div>
+                <div class="stat-value" id="avgConf">-</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Score</div>
+                <div class="stat-value" id="score">-</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>▸ ACTIVE PREDICTIONS</h2>
+            <table class="predictions-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>ASSET</th>
+                        <th>TYPE</th>
+                        <th>PREDICTION</th>
+                        <th>TARGET DATE</th>
+                        <th>CONFIDENCE</th>
+                        <th>STATUS</th>
+                        <th>RATIONALE</th>
+                    </tr>
+                </thead>
+                <tbody id="predictions">
+                    <tr><td colspan="8" style="text-align: center;">Loading predictions...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="footer">
+            LOGGED PREDICTIONS ARE IMMUTABLE // TIMESTAMPS VERIFIABLE // ACCURACY CALCULATED OBJECTIVELY<br>
+            <em>System initialized: December 24, 2025 // Track record begins</em>
+        </div>
+    </div>
+
+    <script>
+        async function loadPredictions() {
+            try {
+                const response = await fetch('http://localhost:8000/predictions/export');
+                const data = await response.json();
+                
+                // Update stats
+                document.getElementById('total').textContent = data.stats.total_predictions;
+                document.getElementById('pending').textContent = data.stats.pending;
+                document.getElementById('resolved').textContent = data.stats.resolved;
+                document.getElementById('accuracy').textContent = data.stats.accuracy_rate.toFixed(1) + '%';
+                document.getElementById('avgConf').textContent = data.stats.avg_confidence.toFixed(0) + '%';
+                document.getElementById('score').textContent = data.stats.avg_accuracy_score.toFixed(2);
+                
+                // Render predictions
+                const tbody = document.getElementById('predictions');
+                tbody.innerHTML = '';
+                
+                data.predictions.forEach(p => {
+                    const row = document.createElement('tr');
+                    
+                    const statusBadge = p.status === 'pending' ? 'badge-pending' :
+                                       p.outcome === 'correct' ? 'badge-correct' :
+                                       p.outcome === 'partial' ? 'badge-partial' : 'badge-incorrect';
+                    
+                    const prediction = p.predicted_direction || p.predicted_value;
+                    
+                    row.innerHTML = `
+                        <td>#${p.id}</td>
+                        <td><strong>${p.asset}</strong></td>
+                        <td>${p.asset_type}</td>
+                        <td><strong style="color: ${p.predicted_direction === 'up' ? '#0f0' : p.predicted_direction === 'down' ? '#f00' : '#ff0'}">${prediction}</strong></td>
+                        <td>${p.target_date}</td>
+                        <td>
+                            <div class="confidence">
+                                <div class="confidence-bar" style="width: ${p.confidence}%"></div>
+                            </div>
+                            ${p.confidence}%
+                        </td>
+                        <td><span class="badge ${statusBadge}">${p.status.toUpperCase()}</span></td>
+                        <td class="rationale">${p.rationale.substring(0, 80)}...</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+                
+            } catch (err) {
+                console.error('Error loading predictions:', err);
+                document.getElementById('predictions').innerHTML = 
+                    '<tr><td colspan="8" style="text-align: center; color: #f00;">Error: API not running. Start meta_service.py first.</td></tr>';
+            }
+        }
+
+        loadPredictions();
+        setInterval(loadPredictions, 30000); // Refresh every 30s
+    </script>
+</body>
+</html>
