@@ -1,0 +1,15 @@
+{
+  "name": "hostinger",
+  "status": "success",
+  "checks": [
+    {
+      "check": "api_key_present",
+      "result": true
+    },
+    {
+      "check": "list_domains",
+      "result": "pending"
+    }
+  ],
+  "note": null
+}

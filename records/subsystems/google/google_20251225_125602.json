@@ -1,0 +1,15 @@
+{
+  "name": "google",
+  "status": "success",
+  "checks": [
+    {
+      "check": "credentials_present",
+      "result": true
+    },
+    {
+      "check": "list_projects",
+      "result": "pending"
+    }
+  ],
+  "note": null
+}

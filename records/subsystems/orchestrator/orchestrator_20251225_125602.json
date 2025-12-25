@@ -1,0 +1,15 @@
+{
+  "name": "orchestrator",
+  "status": "skipped",
+  "checks": [
+    {
+      "check": "endpoint_present",
+      "result": false
+    },
+    {
+      "check": "status_endpoint",
+      "result": "pending"
+    }
+  ],
+  "note": "ORCHESTRATOR_URL not set"
+}

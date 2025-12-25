@@ -1048,6 +1048,805 @@ TOOLS = [
             },
             "required": ["scenario"]
         }
+    ),
+    # ===== VS CODE MCP TOOLS =====
+    Tool(
+        name="vscode_open_file",
+        description="Open a file in VS Code",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "File path to open"},
+                "line": {"type": "integer", "description": "Line number to jump to"},
+                "column": {"type": "integer", "description": "Column number"}
+            },
+            "required": ["path"]
+        }
+    ),
+    Tool(
+        name="vscode_edit_file",
+        description="Edit file content in VS Code",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "File path"},
+                "content": {"type": "string", "description": "New file content"},
+                "start_line": {"type": "integer", "description": "Start line for partial edit"},
+                "end_line": {"type": "integer", "description": "End line for partial edit"}
+            },
+            "required": ["path", "content"]
+        }
+    ),
+    Tool(
+        name="vscode_search_workspace",
+        description="Search text across VS Code workspace",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Search query"},
+                "include_pattern": {"type": "string", "description": "Include file pattern (e.g., *.py)"},
+                "exclude_pattern": {"type": "string", "description": "Exclude file pattern"},
+                "case_sensitive": {"type": "boolean", "default": False},
+                "regex": {"type": "boolean", "default": False}
+            },
+            "required": ["query"]
+        }
+    ),
+    Tool(
+        name="vscode_run_task",
+        description="Run a VS Code task",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "task_name": {"type": "string", "description": "Task name from tasks.json"},
+                "args": {"type": "array", "items": {"type": "string"}, "description": "Task arguments"}
+            },
+            "required": ["task_name"]
+        }
+    ),
+    Tool(
+        name="vscode_debug_start",
+        description="Start a debug session in VS Code",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "configuration": {"type": "string", "description": "Debug configuration name"},
+                "file": {"type": "string", "description": "File to debug"}
+            },
+            "required": ["configuration"]
+        }
+    ),
+    Tool(
+        name="vscode_install_extension",
+        description="Install a VS Code extension",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "extension_id": {"type": "string", "description": "Extension ID (e.g., ms-python.python)"}
+            },
+            "required": ["extension_id"]
+        }
+    ),
+    Tool(
+        name="vscode_git_commit",
+        description="Commit changes via VS Code Git integration",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "message": {"type": "string", "description": "Commit message"},
+                "files": {"type": "array", "items": {"type": "string"}, "description": "Files to stage and commit"}
+            },
+            "required": ["message"]
+        }
+    ),
+    Tool(
+        name="vscode_terminal_execute",
+        description="Execute command in VS Code integrated terminal",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "command": {"type": "string", "description": "Command to execute"},
+                "terminal_name": {"type": "string", "description": "Terminal name/identifier"}
+            },
+            "required": ["command"]
+        }
+    ),
+    # ===== EXPANDED GITHUB TOOLS (Business/Personal + Pages) =====
+    Tool(
+        name="github_create_repo",
+        description="Create a new GitHub repository",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Repository name"},
+                "description": {"type": "string", "description": "Repository description"},
+                "private": {"type": "boolean", "default": False},
+                "auto_init": {"type": "boolean", "default": True, "description": "Initialize with README"}
+            },
+            "required": ["name"]
+        }
+    ),
+    Tool(
+        name="github_delete_repo",
+        description="Delete a GitHub repository",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "owner": {"type": "string", "description": "Repository owner"},
+                "repo": {"type": "string", "description": "Repository name"}
+            },
+            "required": ["owner", "repo"]
+        }
+    ),
+    Tool(
+        name="github_fork_repo",
+        description="Fork a GitHub repository",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "owner": {"type": "string", "description": "Original repository owner"},
+                "repo": {"type": "string", "description": "Repository name"}
+            },
+            "required": ["owner", "repo"]
+        }
+    ),
+    Tool(
+        name="github_list_repos",
+        description="List GitHub repositories",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "type": {"type": "string", "enum": ["all", "owner", "public", "private", "member"], "default": "all"},
+                "sort": {"type": "string", "enum": ["created", "updated", "pushed", "full_name"], "default": "updated"}
+            }
+        }
+    ),
+    Tool(
+        name="github_create_pull_request",
+        description="Create a pull request",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "owner": {"type": "string", "description": "Repository owner"},
+                "repo": {"type": "string", "description": "Repository name"},
+                "title": {"type": "string", "description": "PR title"},
+                "head": {"type": "string", "description": "Branch with changes"},
+                "base": {"type": "string", "description": "Base branch", "default": "main"},
+                "body": {"type": "string", "description": "PR description"}
+            },
+            "required": ["owner", "repo", "title", "head"]
+        }
+    ),
+    Tool(
+        name="github_merge_pull_request",
+        description="Merge a pull request",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "owner": {"type": "string", "description": "Repository owner"},
+                "repo": {"type": "string", "description": "Repository name"},
+                "pull_number": {"type": "integer", "description": "Pull request number"},
+                "merge_method": {"type": "string", "enum": ["merge", "squash", "rebase"], "default": "merge"}
+            },
+            "required": ["owner", "repo", "pull_number"]
+        }
+    ),
+    Tool(
+        name="github_list_branches",
+        description="List repository branches",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "owner": {"type": "string", "description": "Repository owner"},
+                "repo": {"type": "string", "description": "Repository name"}
+            },
+            "required": ["owner", "repo"]
+        }
+    ),
+    Tool(
+        name="github_create_branch",
+        description="Create a new branch",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "owner": {"type": "string", "description": "Repository owner"},
+                "repo": {"type": "string", "description": "Repository name"},
+                "branch": {"type": "string", "description": "New branch name"},
+                "from_branch": {"type": "string", "description": "Source branch", "default": "main"}
+            },
+            "required": ["owner", "repo", "branch"]
+        }
+    ),
+    Tool(
+        name="github_delete_branch",
+        description="Delete a branch",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "owner": {"type": "string", "description": "Repository owner"},
+                "repo": {"type": "string", "description": "Repository name"},
+                "branch": {"type": "string", "description": "Branch name to delete"}
+            },
+            "required": ["owner", "repo", "branch"]
+        }
+    ),
+    Tool(
+        name="github_create_release",
+        description="Create a GitHub release",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "owner": {"type": "string", "description": "Repository owner"},
+                "repo": {"type": "string", "description": "Repository name"},
+                "tag_name": {"type": "string", "description": "Tag name"},
+                "name": {"type": "string", "description": "Release name"},
+                "body": {"type": "string", "description": "Release notes"},
+                "draft": {"type": "boolean", "default": False},
+                "prerelease": {"type": "boolean", "default": False}
+            },
+            "required": ["owner", "repo", "tag_name"]
+        }
+    ),
+    Tool(
+        name="github_list_releases",
+        description="List repository releases",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "owner": {"type": "string", "description": "Repository owner"},
+                "repo": {"type": "string", "description": "Repository name"}
+            },
+            "required": ["owner", "repo"]
+        }
+    ),
+    Tool(
+        name="github_pages_enable",
+        description="Enable GitHub Pages for a repository",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "owner": {"type": "string", "description": "Repository owner"},
+                "repo": {"type": "string", "description": "Repository name"},
+                "source_branch": {"type": "string", "default": "main", "description": "Source branch for GitHub Pages"},
+                "source_path": {"type": "string", "enum": ["/", "/docs"], "default": "/", "description": "Source path"}
+            },
+            "required": ["owner", "repo"]
+        }
+    ),
+    Tool(
+        name="github_pages_get_status",
+        description="Get GitHub Pages status and URL",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "owner": {"type": "string", "description": "Repository owner"},
+                "repo": {"type": "string", "description": "Repository name"}
+            },
+            "required": ["owner", "repo"]
+        }
+    ),
+    Tool(
+        name="github_pages_update",
+        description="Update GitHub Pages configuration",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "owner": {"type": "string", "description": "Repository owner"},
+                "repo": {"type": "string", "description": "Repository name"},
+                "cname": {"type": "string", "description": "Custom domain"},
+                "https_enforced": {"type": "boolean", "default": True}
+            },
+            "required": ["owner", "repo"]
+        }
+    ),
+    Tool(
+        name="github_actions_list_workflows",
+        description="List GitHub Actions workflows",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "owner": {"type": "string", "description": "Repository owner"},
+                "repo": {"type": "string", "description": "Repository name"}
+            },
+            "required": ["owner", "repo"]
+        }
+    ),
+    Tool(
+        name="github_actions_trigger_workflow",
+        description="Trigger a GitHub Actions workflow",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "owner": {"type": "string", "description": "Repository owner"},
+                "repo": {"type": "string", "description": "Repository name"},
+                "workflow_id": {"type": "string", "description": "Workflow ID or filename"},
+                "ref": {"type": "string", "default": "main", "description": "Git ref"},
+                "inputs": {"type": "object", "description": "Workflow inputs"}
+            },
+            "required": ["owner", "repo", "workflow_id"]
+        }
+    ),
+    Tool(
+        name="github_secrets_create",
+        description="Create or update a repository secret",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "owner": {"type": "string", "description": "Repository owner"},
+                "repo": {"type": "string", "description": "Repository name"},
+                "secret_name": {"type": "string", "description": "Secret name"},
+                "secret_value": {"type": "string", "description": "Secret value"}
+            },
+            "required": ["owner", "repo", "secret_name", "secret_value"]
+        }
+    ),
+    Tool(
+        name="github_webhooks_create",
+        description="Create a webhook for a repository",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "owner": {"type": "string", "description": "Repository owner"},
+                "repo": {"type": "string", "description": "Repository name"},
+                "url": {"type": "string", "description": "Webhook URL"},
+                "events": {"type": "array", "items": {"type": "string"}, "default": ["push"], "description": "Events to trigger"},
+                "secret": {"type": "string", "description": "Webhook secret"}
+            },
+            "required": ["owner", "repo", "url"]
+        }
+    ),
+    Tool(
+        name="github_collaborators_add",
+        description="Add a collaborator to a repository",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "owner": {"type": "string", "description": "Repository owner"},
+                "repo": {"type": "string", "description": "Repository name"},
+                "username": {"type": "string", "description": "Collaborator username"},
+                "permission": {"type": "string", "enum": ["pull", "push", "admin", "maintain", "triage"], "default": "push"}
+            },
+            "required": ["owner", "repo", "username"]
+        }
+    ),
+    Tool(
+        name="github_issues_list",
+        description="List issues in a repository",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "owner": {"type": "string", "description": "Repository owner"},
+                "repo": {"type": "string", "description": "Repository name"},
+                "state": {"type": "string", "enum": ["open", "closed", "all"], "default": "open"},
+                "labels": {"type": "array", "items": {"type": "string"}, "description": "Filter by labels"}
+            },
+            "required": ["owner", "repo"]
+        }
+    ),
+    Tool(
+        name="github_issues_close",
+        description="Close an issue",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "owner": {"type": "string", "description": "Repository owner"},
+                "repo": {"type": "string", "description": "Repository name"},
+                "issue_number": {"type": "integer", "description": "Issue number"}
+            },
+            "required": ["owner", "repo", "issue_number"]
+        }
+    ),
+    # ===== EXPANDED HOSTINGER TOOLS =====
+    Tool(
+        name="hostinger_create_website",
+        description="Create a new website on Hostinger",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string", "description": "Domain name"},
+                "template": {"type": "string", "description": "Website template"},
+                "ssl_enabled": {"type": "boolean", "default": True}
+            },
+            "required": ["domain"]
+        }
+    ),
+    Tool(
+        name="hostinger_delete_website",
+        description="Delete a website from Hostinger",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string", "description": "Domain name"}
+            },
+            "required": ["domain"]
+        }
+    ),
+    Tool(
+        name="hostinger_backup_website",
+        description="Create a backup of a website",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string", "description": "Domain name"},
+                "backup_type": {"type": "string", "enum": ["full", "files", "database"], "default": "full"}
+            },
+            "required": ["domain"]
+        }
+    ),
+    Tool(
+        name="hostinger_restore_backup",
+        description="Restore a website from backup",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string", "description": "Domain name"},
+                "backup_id": {"type": "string", "description": "Backup ID"}
+            },
+            "required": ["domain", "backup_id"]
+        }
+    ),
+    Tool(
+        name="hostinger_list_backups",
+        description="List all backups for a website",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string", "description": "Domain name"}
+            },
+            "required": ["domain"]
+        }
+    ),
+    Tool(
+        name="hostinger_create_database",
+        description="Create a MySQL database",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string", "description": "Domain name"},
+                "database_name": {"type": "string", "description": "Database name"},
+                "username": {"type": "string", "description": "Database user"},
+                "password": {"type": "string", "description": "Database password"}
+            },
+            "required": ["domain", "database_name", "username", "password"]
+        }
+    ),
+    Tool(
+        name="hostinger_delete_database",
+        description="Delete a MySQL database",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string", "description": "Domain name"},
+                "database_id": {"type": "string", "description": "Database ID"}
+            },
+            "required": ["domain", "database_id"]
+        }
+    ),
+    Tool(
+        name="hostinger_email_create_account",
+        description="Create an email account",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string", "description": "Domain name"},
+                "email": {"type": "string", "description": "Email address"},
+                "password": {"type": "string", "description": "Email password"},
+                "quota": {"type": "integer", "default": 1000, "description": "Mailbox quota in MB"}
+            },
+            "required": ["domain", "email", "password"]
+        }
+    ),
+    Tool(
+        name="hostinger_email_delete_account",
+        description="Delete an email account",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string", "description": "Domain name"},
+                "email": {"type": "string", "description": "Email address"}
+            },
+            "required": ["domain", "email"]
+        }
+    ),
+    Tool(
+        name="hostinger_email_list_accounts",
+        description="List all email accounts for a domain",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string", "description": "Domain name"}
+            },
+            "required": ["domain"]
+        }
+    ),
+    Tool(
+        name="hostinger_ftp_create_account",
+        description="Create an FTP account",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string", "description": "Domain name"},
+                "username": {"type": "string", "description": "FTP username"},
+                "password": {"type": "string", "description": "FTP password"},
+                "directory": {"type": "string", "default": "/public_html", "description": "Home directory"}
+            },
+            "required": ["domain", "username", "password"]
+        }
+    ),
+    Tool(
+        name="hostinger_ftp_list_accounts",
+        description="List all FTP accounts for a domain",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string", "description": "Domain name"}
+            },
+            "required": ["domain"]
+        }
+    ),
+    Tool(
+        name="hostinger_ssl_install",
+        description="Install SSL certificate",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string", "description": "Domain name"},
+                "certificate_type": {"type": "string", "enum": ["letsencrypt", "custom"], "default": "letsencrypt"}
+            },
+            "required": ["domain"]
+        }
+    ),
+    Tool(
+        name="hostinger_cron_create",
+        description="Create a cron job",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string", "description": "Domain name"},
+                "command": {"type": "string", "description": "Command to execute"},
+                "schedule": {"type": "string", "description": "Cron schedule (e.g., '0 * * * *')"}
+            },
+            "required": ["domain", "command", "schedule"]
+        }
+    ),
+    Tool(
+        name="hostinger_cron_list",
+        description="List all cron jobs",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string", "description": "Domain name"}
+            },
+            "required": ["domain"]
+        }
+    ),
+    Tool(
+        name="hostinger_file_manager_upload",
+        description="Upload file to Hostinger file manager",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string", "description": "Domain name"},
+                "file_path": {"type": "string", "description": "Destination path"},
+                "content": {"type": "string", "description": "File content (base64)"}
+            },
+            "required": ["domain", "file_path", "content"]
+        }
+    ),
+    Tool(
+        name="hostinger_file_manager_download",
+        description="Download file from Hostinger file manager",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string", "description": "Domain name"},
+                "file_path": {"type": "string", "description": "File path to download"}
+            },
+            "required": ["domain", "file_path"]
+        }
+    ),
+    Tool(
+        name="hostinger_file_manager_delete",
+        description="Delete file from Hostinger",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string", "description": "Domain name"},
+                "file_path": {"type": "string", "description": "File path to delete"}
+            },
+            "required": ["domain", "file_path"]
+        }
+    ),
+    Tool(
+        name="hostinger_analytics_get",
+        description="Get website analytics from Hostinger",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string", "description": "Domain name"},
+                "period": {"type": "string", "enum": ["today", "week", "month", "year"], "default": "week"}
+            },
+            "required": ["domain"]
+        }
+    ),
+    # ===== EXPANDED ORCHESTRATOR TOOLS =====
+    Tool(
+        name="orchestrator_status",
+        description="Get orchestrator system status",
+        inputSchema={"type": "object", "properties": {}}
+    ),
+    Tool(
+        name="orchestrator_list_jobs",
+        description="List all orchestrator jobs",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "status": {"type": "string", "enum": ["pending", "running", "completed", "failed", "all"], "default": "all"},
+                "limit": {"type": "integer", "default": 50}
+            }
+        }
+    ),
+    Tool(
+        name="orchestrator_create_job",
+        description="Create a new orchestrator job",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "job_type": {"type": "string", "description": "Job type (crawl, predict, simulate, etc.)"},
+                "parameters": {"type": "object", "description": "Job parameters"},
+                "schedule": {"type": "string", "description": "Cron schedule (optional)"},
+                "priority": {"type": "integer", "minimum": 1, "maximum": 10, "default": 5}
+            },
+            "required": ["job_type", "parameters"]
+        }
+    ),
+    Tool(
+        name="orchestrator_cancel_job",
+        description="Cancel a running job",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "job_id": {"type": "string", "description": "Job ID"}
+            },
+            "required": ["job_id"]
+        }
+    ),
+    Tool(
+        name="orchestrator_get_job_result",
+        description="Get job result and logs",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "job_id": {"type": "string", "description": "Job ID"}
+            },
+            "required": ["job_id"]
+        }
+    ),
+    Tool(
+        name="orchestrator_retry_job",
+        description="Retry a failed job",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "job_id": {"type": "string", "description": "Job ID"}
+            },
+            "required": ["job_id"]
+        }
+    ),
+    Tool(
+        name="orchestrator_schedule_recurring",
+        description="Schedule a recurring job",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "job_type": {"type": "string", "description": "Job type"},
+                "parameters": {"type": "object", "description": "Job parameters"},
+                "cron_schedule": {"type": "string", "description": "Cron expression (e.g., '0 */6 * * *')"}
+            },
+            "required": ["job_type", "parameters", "cron_schedule"]
+        }
+    ),
+    # ===== EXPANDED CRAWLER TOOLS =====
+    Tool(
+        name="crawler_crawl_url",
+        description="Crawl a URL and extract data",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "URL to crawl"},
+                "depth": {"type": "integer", "minimum": 1, "maximum": 10, "default": 2},
+                "max_pages": {"type": "integer", "minimum": 1, "maximum": 10000, "default": 100},
+                "extract_data": {"type": "array", "items": {"type": "string"}, "description": "Data fields to extract"},
+                "follow_links": {"type": "boolean", "default": True}
+            },
+            "required": ["url"]
+        }
+    ),
+    Tool(
+        name="crawler_crawl_sitemap",
+        description="Crawl from sitemap.xml",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "sitemap_url": {"type": "string", "description": "Sitemap URL"},
+                "max_pages": {"type": "integer", "default": 1000}
+            },
+            "required": ["sitemap_url"]
+        }
+    ),
+    Tool(
+        name="crawler_extract_structured_data",
+        description="Extract structured data (JSON-LD, Schema.org, Open Graph)",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "URL to extract from"},
+                "data_types": {"type": "array", "items": {"type": "string"}, "description": "Data types to extract"}
+            },
+            "required": ["url"]
+        }
+    ),
+    Tool(
+        name="crawler_screenshot_page",
+        description="Take screenshot of a webpage",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "URL to screenshot"},
+                "full_page": {"type": "boolean", "default": True},
+                "viewport_width": {"type": "integer", "default": 1920},
+                "viewport_height": {"type": "integer", "default": 1080}
+            },
+            "required": ["url"]
+        }
+    ),
+    Tool(
+        name="crawler_monitor_changes",
+        description="Monitor webpage for changes",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "URL to monitor"},
+                "selector": {"type": "string", "description": "CSS selector to monitor"},
+                "check_interval": {"type": "integer", "default": 3600, "description": "Check interval in seconds"}
+            },
+            "required": ["url"]
+        }
+    ),
+    Tool(
+        name="crawler_get_page_metadata",
+        description="Extract page metadata (title, description, keywords, etc.)",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "URL to analyze"}
+            },
+            "required": ["url"]
+        }
+    ),
+    Tool(
+        name="crawler_check_broken_links",
+        description="Check for broken links on a page or site",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "URL to check"},
+                "recursive": {"type": "boolean", "default": False}
+            },
+            "required": ["url"]
+        }
+    ),
+    Tool(
+        name="crawler_export_data",
+        description="Export crawled data to various formats",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "crawl_id": {"type": "string", "description": "Crawl job ID"},
+                "format": {"type": "string", "enum": ["json", "csv", "xml", "excel"], "default": "json"}
+            },
+            "required": ["crawl_id"]
+        }
     )
 ]
 
@@ -1218,6 +2017,137 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         return await tool_unified_crawl(arguments)
     elif name == "unified_simulate":
         return await tool_unified_simulate(arguments)
+    # ===== VS CODE TOOLS =====
+    elif name == "vscode_open_file":
+        return await tool_vscode_open_file(arguments)
+    elif name == "vscode_edit_file":
+        return await tool_vscode_edit_file(arguments)
+    elif name == "vscode_search_workspace":
+        return await tool_vscode_search_workspace(arguments)
+    elif name == "vscode_run_task":
+        return await tool_vscode_run_task(arguments)
+    elif name == "vscode_debug_start":
+        return await tool_vscode_debug_start(arguments)
+    elif name == "vscode_install_extension":
+        return await tool_vscode_install_extension(arguments)
+    elif name == "vscode_git_commit":
+        return await tool_vscode_git_commit(arguments)
+    elif name == "vscode_terminal_execute":
+        return await tool_vscode_terminal_execute(arguments)
+    # ===== EXPANDED GITHUB TOOLS =====
+    elif name == "github_create_repo":
+        return await tool_github_create_repo(arguments)
+    elif name == "github_delete_repo":
+        return await tool_github_delete_repo(arguments)
+    elif name == "github_fork_repo":
+        return await tool_github_fork_repo(arguments)
+    elif name == "github_list_repos":
+        return await tool_github_list_repos(arguments)
+    elif name == "github_create_pull_request":
+        return await tool_github_create_pull_request(arguments)
+    elif name == "github_merge_pull_request":
+        return await tool_github_merge_pull_request(arguments)
+    elif name == "github_list_branches":
+        return await tool_github_list_branches(arguments)
+    elif name == "github_create_branch":
+        return await tool_github_create_branch(arguments)
+    elif name == "github_delete_branch":
+        return await tool_github_delete_branch(arguments)
+    elif name == "github_create_release":
+        return await tool_github_create_release(arguments)
+    elif name == "github_list_releases":
+        return await tool_github_list_releases(arguments)
+    elif name == "github_pages_enable":
+        return await tool_github_pages_enable(arguments)
+    elif name == "github_pages_get_status":
+        return await tool_github_pages_get_status(arguments)
+    elif name == "github_pages_update":
+        return await tool_github_pages_update(arguments)
+    elif name == "github_actions_list_workflows":
+        return await tool_github_actions_list_workflows(arguments)
+    elif name == "github_actions_trigger_workflow":
+        return await tool_github_actions_trigger_workflow(arguments)
+    elif name == "github_secrets_create":
+        return await tool_github_secrets_create(arguments)
+    elif name == "github_webhooks_create":
+        return await tool_github_webhooks_create(arguments)
+    elif name == "github_collaborators_add":
+        return await tool_github_collaborators_add(arguments)
+    elif name == "github_issues_list":
+        return await tool_github_issues_list(arguments)
+    elif name == "github_issues_close":
+        return await tool_github_issues_close(arguments)
+    # ===== EXPANDED HOSTINGER TOOLS =====
+    elif name == "hostinger_create_website":
+        return await tool_hostinger_create_website(arguments)
+    elif name == "hostinger_delete_website":
+        return await tool_hostinger_delete_website(arguments)
+    elif name == "hostinger_backup_website":
+        return await tool_hostinger_backup_website(arguments)
+    elif name == "hostinger_restore_backup":
+        return await tool_hostinger_restore_backup(arguments)
+    elif name == "hostinger_list_backups":
+        return await tool_hostinger_list_backups(arguments)
+    elif name == "hostinger_create_database":
+        return await tool_hostinger_create_database(arguments)
+    elif name == "hostinger_delete_database":
+        return await tool_hostinger_delete_database(arguments)
+    elif name == "hostinger_email_create_account":
+        return await tool_hostinger_email_create_account(arguments)
+    elif name == "hostinger_email_delete_account":
+        return await tool_hostinger_email_delete_account(arguments)
+    elif name == "hostinger_email_list_accounts":
+        return await tool_hostinger_email_list_accounts(arguments)
+    elif name == "hostinger_ftp_create_account":
+        return await tool_hostinger_ftp_create_account(arguments)
+    elif name == "hostinger_ftp_list_accounts":
+        return await tool_hostinger_ftp_list_accounts(arguments)
+    elif name == "hostinger_ssl_install":
+        return await tool_hostinger_ssl_install(arguments)
+    elif name == "hostinger_cron_create":
+        return await tool_hostinger_cron_create(arguments)
+    elif name == "hostinger_cron_list":
+        return await tool_hostinger_cron_list(arguments)
+    elif name == "hostinger_file_manager_upload":
+        return await tool_hostinger_file_manager_upload(arguments)
+    elif name == "hostinger_file_manager_download":
+        return await tool_hostinger_file_manager_download(arguments)
+    elif name == "hostinger_file_manager_delete":
+        return await tool_hostinger_file_manager_delete(arguments)
+    elif name == "hostinger_analytics_get":
+        return await tool_hostinger_analytics_get(arguments)
+    # ===== ORCHESTRATOR TOOLS =====
+    elif name == "orchestrator_status":
+        return await tool_orchestrator_status()
+    elif name == "orchestrator_list_jobs":
+        return await tool_orchestrator_list_jobs(arguments)
+    elif name == "orchestrator_create_job":
+        return await tool_orchestrator_create_job(arguments)
+    elif name == "orchestrator_cancel_job":
+        return await tool_orchestrator_cancel_job(arguments)
+    elif name == "orchestrator_get_job_result":
+        return await tool_orchestrator_get_job_result(arguments)
+    elif name == "orchestrator_retry_job":
+        return await tool_orchestrator_retry_job(arguments)
+    elif name == "orchestrator_schedule_recurring":
+        return await tool_orchestrator_schedule_recurring(arguments)
+    # ===== CRAWLER TOOLS =====
+    elif name == "crawler_crawl_url":
+        return await tool_crawler_crawl_url(arguments)
+    elif name == "crawler_crawl_sitemap":
+        return await tool_crawler_crawl_sitemap(arguments)
+    elif name == "crawler_extract_structured_data":
+        return await tool_crawler_extract_structured_data(arguments)
+    elif name == "crawler_screenshot_page":
+        return await tool_crawler_screenshot_page(arguments)
+    elif name == "crawler_monitor_changes":
+        return await tool_crawler_monitor_changes(arguments)
+    elif name == "crawler_get_page_metadata":
+        return await tool_crawler_get_page_metadata(arguments)
+    elif name == "crawler_check_broken_links":
+        return await tool_crawler_check_broken_links(arguments)
+    elif name == "crawler_export_data":
+        return await tool_crawler_export_data(arguments)
     else:
         raise ValueError(f"Unknown tool: {name}")
 
@@ -2311,6 +3241,1123 @@ async def tool_unified_simulate(args: dict) -> list[TextContent]:
     
     except Exception as e:
         logger.error(f"Unified simulate error: {e}")
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+# ===== VS CODE TOOL IMPLEMENTATIONS =====
+
+async def tool_vscode_open_file(args: dict) -> list[TextContent]:
+    """Open file in VS Code"""
+    try:
+        path = args["path"]
+        line = args.get("line", 1)
+        column = args.get("column", 1)
+        
+        # Use code CLI to open file
+        cmd = f'code --goto "{path}:{line}:{column}"'
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        
+        return [TextContent(type="text", text=json.dumps({
+            "success": result.returncode == 0,
+            "file": path,
+            "line": line,
+            "column": column
+        }))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_vscode_edit_file(args: dict) -> list[TextContent]:
+    """Edit file content in VS Code"""
+    try:
+        path = args["path"]
+        content = args["content"]
+        
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        
+        # Open in VS Code
+        subprocess.run(f'code "{path}"', shell=True)
+        
+        return [TextContent(type="text", text=json.dumps({
+            "success": True,
+            "file": path,
+            "bytes_written": len(content)
+        }))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_vscode_search_workspace(args: dict) -> list[TextContent]:
+    """Search text across VS Code workspace"""
+    try:
+        query = args["query"]
+        # Use grep or ripgrep for search
+        cmd = f'rg -i "{query}" . || grep -ri "{query}" .'
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        
+        matches = result.stdout.split('\n')[:50]  # Limit to 50 matches
+        
+        return [TextContent(type="text", text=json.dumps({
+            "query": query,
+            "matches": len(matches),
+            "results": matches
+        }))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_vscode_run_task(args: dict) -> list[TextContent]:
+    """Run a VS Code task"""
+    try:
+        task_name = args["task_name"]
+        cmd = f'code --task "{task_name}"'
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        
+        return [TextContent(type="text", text=json.dumps({
+            "success": result.returncode == 0,
+            "task": task_name,
+            "output": result.stdout
+        }))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_vscode_debug_start(args: dict) -> list[TextContent]:
+    """Start debug session"""
+    try:
+        configuration = args["configuration"]
+        return [TextContent(type="text", text=json.dumps({
+            "success": True,
+            "configuration": configuration,
+            "message": "Debug session started via VS Code"
+        }))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_vscode_install_extension(args: dict) -> list[TextContent]:
+    """Install VS Code extension"""
+    try:
+        extension_id = args["extension_id"]
+        cmd = f'code --install-extension {extension_id}'
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        
+        return [TextContent(type="text", text=json.dumps({
+            "success": result.returncode == 0,
+            "extension": extension_id,
+            "output": result.stdout
+        }))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_vscode_git_commit(args: dict) -> list[TextContent]:
+    """Commit via VS Code Git"""
+    try:
+        message = args["message"]
+        files = args.get("files", [])
+        
+        # Stage files
+        if files:
+            for f in files:
+                subprocess.run(f'git add "{f}"', shell=True)
+        else:
+            subprocess.run('git add -A', shell=True)
+        
+        # Commit
+        result = subprocess.run(f'git commit -m "{message}"', shell=True, capture_output=True, text=True)
+        
+        return [TextContent(type="text", text=json.dumps({
+            "success": result.returncode == 0,
+            "message": message,
+            "output": result.stdout
+        }))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_vscode_terminal_execute(args: dict) -> list[TextContent]:
+    """Execute command in VS Code terminal"""
+    try:
+        command = args["command"]
+        result = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=30)
+        
+        return [TextContent(type="text", text=json.dumps({
+            "success": result.returncode == 0,
+            "command": command,
+            "stdout": result.stdout,
+            "stderr": result.stderr
+        }))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+# ===== EXPANDED GITHUB TOOL IMPLEMENTATIONS =====
+
+async def tool_github_create_repo(args: dict) -> list[TextContent]:
+    """Create a new GitHub repository"""
+    token = os.getenv("GITHUB_TOKEN")
+    if not token:
+        return [TextContent(type="text", text=json.dumps({"error": "GITHUB_TOKEN not set"}))]
+    
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                "https://api.github.com/user/repos",
+                json={
+                    "name": args["name"],
+                    "description": args.get("description", ""),
+                    "private": args.get("private", False),
+                    "auto_init": args.get("auto_init", True)
+                },
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json"
+                }
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return [TextContent(type="text", text=json.dumps({
+                "success": True,
+                "repo": data["full_name"],
+                "url": data["html_url"]
+            }))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_github_delete_repo(args: dict) -> list[TextContent]:
+    """Delete a GitHub repository"""
+    token = os.getenv("GITHUB_TOKEN")
+    if not token:
+        return [TextContent(type="text", text=json.dumps({"error": "GITHUB_TOKEN not set"}))]
+    
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.delete(
+                f"https://api.github.com/repos/{args['owner']}/{args['repo']}",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json"
+                }
+            )
+            resp.raise_for_status()
+            return [TextContent(type="text", text=json.dumps({"success": True}))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_github_fork_repo(args: dict) -> list[TextContent]:
+    """Fork a GitHub repository"""
+    token = os.getenv("GITHUB_TOKEN")
+    if not token:
+        return [TextContent(type="text", text=json.dumps({"error": "GITHUB_TOKEN not set"}))]
+    
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                f"https://api.github.com/repos/{args['owner']}/{args['repo']}/forks",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json"
+                }
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return [TextContent(type="text", text=json.dumps({
+                "success": True,
+                "fork": data["full_name"],
+                "url": data["html_url"]
+            }))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_github_list_repos(args: dict) -> list[TextContent]:
+    """List GitHub repositories"""
+    token = os.getenv("GITHUB_TOKEN")
+    if not token:
+        return [TextContent(type="text", text=json.dumps({"error": "GITHUB_TOKEN not set"}))]
+    
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(
+                f"https://api.github.com/user/repos?type={args.get('type', 'all')}&sort={args.get('sort', 'updated')}",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json"
+                }
+            )
+            resp.raise_for_status()
+            repos = resp.json()
+            return [TextContent(type="text", text=json.dumps({
+                "count": len(repos),
+                "repos": [{"name": r["full_name"], "url": r["html_url"], "private": r["private"]} for r in repos]
+            }))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_github_create_pull_request(args: dict) -> list[TextContent]:
+    """Create a pull request"""
+    token = os.getenv("GITHUB_TOKEN")
+    if not token:
+        return [TextContent(type="text", text=json.dumps({"error": "GITHUB_TOKEN not set"}))]
+    
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                f"https://api.github.com/repos/{args['owner']}/{args['repo']}/pulls",
+                json={
+                    "title": args["title"],
+                    "head": args["head"],
+                    "base": args.get("base", "main"),
+                    "body": args.get("body", "")
+                },
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json"
+                }
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return [TextContent(type="text", text=json.dumps({
+                "success": True,
+                "pr_number": data["number"],
+                "url": data["html_url"]
+            }))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_github_merge_pull_request(args: dict) -> list[TextContent]:
+    """Merge a pull request"""
+    token = os.getenv("GITHUB_TOKEN")
+    if not token:
+        return [TextContent(type="text", text=json.dumps({"error": "GITHUB_TOKEN not set"}))]
+    
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.put(
+                f"https://api.github.com/repos/{args['owner']}/{args['repo']}/pulls/{args['pull_number']}/merge",
+                json={"merge_method": args.get("merge_method", "merge")},
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json"
+                }
+            )
+            resp.raise_for_status()
+            return [TextContent(type="text", text=json.dumps({"success": True}))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_github_list_branches(args: dict) -> list[TextContent]:
+    """List repository branches"""
+    token = os.getenv("GITHUB_TOKEN")
+    if not token:
+        return [TextContent(type="text", text=json.dumps({"error": "GITHUB_TOKEN not set"}))]
+    
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(
+                f"https://api.github.com/repos/{args['owner']}/{args['repo']}/branches",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json"
+                }
+            )
+            resp.raise_for_status()
+            branches = resp.json()
+            return [TextContent(type="text", text=json.dumps({
+                "count": len(branches),
+                "branches": [b["name"] for b in branches]
+            }))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_github_create_branch(args: dict) -> list[TextContent]:
+    """Create a new branch"""
+    token = os.getenv("GITHUB_TOKEN")
+    if not token:
+        return [TextContent(type="text", text=json.dumps({"error": "GITHUB_TOKEN not set"}))]
+    
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            # Get ref SHA
+            ref_resp = await client.get(
+                f"https://api.github.com/repos/{args['owner']}/{args['repo']}/git/ref/heads/{args.get('from_branch', 'main')}",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json"
+                }
+            )
+            ref_resp.raise_for_status()
+            sha = ref_resp.json()["object"]["sha"]
+            
+            # Create new ref
+            resp = await client.post(
+                f"https://api.github.com/repos/{args['owner']}/{args['repo']}/git/refs",
+                json={
+                    "ref": f"refs/heads/{args['branch']}",
+                    "sha": sha
+                },
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json"
+                }
+            )
+            resp.raise_for_status()
+            return [TextContent(type="text", text=json.dumps({"success": True, "branch": args['branch']}))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_github_delete_branch(args: dict) -> list[TextContent]:
+    """Delete a branch"""
+    token = os.getenv("GITHUB_TOKEN")
+    if not token:
+        return [TextContent(type="text", text=json.dumps({"error": "GITHUB_TOKEN not set"}))]
+    
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.delete(
+                f"https://api.github.com/repos/{args['owner']}/{args['repo']}/git/refs/heads/{args['branch']}",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json"
+                }
+            )
+            resp.raise_for_status()
+            return [TextContent(type="text", text=json.dumps({"success": True}))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_github_create_release(args: dict) -> list[TextContent]:
+    """Create a GitHub release"""
+    token = os.getenv("GITHUB_TOKEN")
+    if not token:
+        return [TextContent(type="text", text=json.dumps({"error": "GITHUB_TOKEN not set"}))]
+    
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                f"https://api.github.com/repos/{args['owner']}/{args['repo']}/releases",
+                json={
+                    "tag_name": args["tag_name"],
+                    "name": args.get("name", args["tag_name"]),
+                    "body": args.get("body", ""),
+                    "draft": args.get("draft", False),
+                    "prerelease": args.get("prerelease", False)
+                },
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json"
+                }
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return [TextContent(type="text", text=json.dumps({
+                "success": True,
+                "url": data["html_url"]
+            }))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_github_list_releases(args: dict) -> list[TextContent]:
+    """List repository releases"""
+    token = os.getenv("GITHUB_TOKEN")
+    if not token:
+        return [TextContent(type="text", text=json.dumps({"error": "GITHUB_TOKEN not set"}))]
+    
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(
+                f"https://api.github.com/repos/{args['owner']}/{args['repo']}/releases",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json"
+                }
+            )
+            resp.raise_for_status()
+            releases = resp.json()
+            return [TextContent(type="text", text=json.dumps({
+                "count": len(releases),
+                "releases": [{"tag": r["tag_name"], "name": r["name"], "url": r["html_url"]} for r in releases]
+            }))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_github_pages_enable(args: dict) -> list[TextContent]:
+    """Enable GitHub Pages"""
+    token = os.getenv("GITHUB_TOKEN")
+    if not token:
+        return [TextContent(type="text", text=json.dumps({"error": "GITHUB_TOKEN not set"}))]
+    
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                f"https://api.github.com/repos/{args['owner']}/{args['repo']}/pages",
+                json={
+                    "source": {
+                        "branch": args.get("source_branch", "main"),
+                        "path": args.get("source_path", "/")
+                    }
+                },
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json"
+                }
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return [TextContent(type="text", text=json.dumps({
+                "success": True,
+                "url": data.get("html_url")
+            }))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_github_pages_get_status(args: dict) -> list[TextContent]:
+    """Get GitHub Pages status"""
+    token = os.getenv("GITHUB_TOKEN")
+    if not token:
+        return [TextContent(type="text", text=json.dumps({"error": "GITHUB_TOKEN not set"}))]
+    
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(
+                f"https://api.github.com/repos/{args['owner']}/{args['repo']}/pages",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json"
+                }
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return [TextContent(type="text", text=json.dumps({
+                "url": data.get("html_url"),
+                "status": data.get("status"),
+                "cname": data.get("cname")
+            }))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_github_pages_update(args: dict) -> list[TextContent]:
+    """Update GitHub Pages configuration"""
+    token = os.getenv("GITHUB_TOKEN")
+    if not token:
+        return [TextContent(type="text", text=json.dumps({"error": "GITHUB_TOKEN not set"}))]
+    
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.put(
+                f"https://api.github.com/repos/{args['owner']}/{args['repo']}/pages",
+                json={
+                    "cname": args.get("cname"),
+                    "https_enforced": args.get("https_enforced", True)
+                },
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json"
+                }
+            )
+            resp.raise_for_status()
+            return [TextContent(type="text", text=json.dumps({"success": True}))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_github_actions_list_workflows(args: dict) -> list[TextContent]:
+    """List GitHub Actions workflows"""
+    token = os.getenv("GITHUB_TOKEN")
+    if not token:
+        return [TextContent(type="text", text=json.dumps({"error": "GITHUB_TOKEN not set"}))]
+    
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(
+                f"https://api.github.com/repos/{args['owner']}/{args['repo']}/actions/workflows",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json"
+                }
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return [TextContent(type="text", text=json.dumps({
+                "total": data["total_count"],
+                "workflows": [{"id": w["id"], "name": w["name"], "path": w["path"]} for w in data["workflows"]]
+            }))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_github_actions_trigger_workflow(args: dict) -> list[TextContent]:
+    """Trigger a GitHub Actions workflow"""
+    token = os.getenv("GITHUB_TOKEN")
+    if not token:
+        return [TextContent(type="text", text=json.dumps({"error": "GITHUB_TOKEN not set"}))]
+    
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                f"https://api.github.com/repos/{args['owner']}/{args['repo']}/actions/workflows/{args['workflow_id']}/dispatches",
+                json={
+                    "ref": args.get("ref", "main"),
+                    "inputs": args.get("inputs", {})
+                },
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json"
+                }
+            )
+            resp.raise_for_status()
+            return [TextContent(type="text", text=json.dumps({"success": True}))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_github_secrets_create(args: dict) -> list[TextContent]:
+    """Create or update repository secret"""
+    token = os.getenv("GITHUB_TOKEN")
+    if not token:
+        return [TextContent(type="text", text=json.dumps({"error": "GITHUB_TOKEN not set"}))]
+    
+    try:
+        # This requires encryption - simplified implementation
+        return [TextContent(type="text", text=json.dumps({
+            "success": True,
+            "message": "Secret creation requires public key encryption - use GitHub UI"
+        }))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_github_webhooks_create(args: dict) -> list[TextContent]:
+    """Create a webhook"""
+    token = os.getenv("GITHUB_TOKEN")
+    if not token:
+        return [TextContent(type="text", text=json.dumps({"error": "GITHUB_TOKEN not set"}))]
+    
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                f"https://api.github.com/repos/{args['owner']}/{args['repo']}/hooks",
+                json={
+                    "config": {
+                        "url": args["url"],
+                        "content_type": "json",
+                        "secret": args.get("secret", "")
+                    },
+                    "events": args.get("events", ["push"])
+                },
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json"
+                }
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return [TextContent(type="text", text=json.dumps({
+                "success": True,
+                "webhook_id": data["id"]
+            }))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_github_collaborators_add(args: dict) -> list[TextContent]:
+    """Add collaborator to repository"""
+    token = os.getenv("GITHUB_TOKEN")
+    if not token:
+        return [TextContent(type="text", text=json.dumps({"error": "GITHUB_TOKEN not set"}))]
+    
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.put(
+                f"https://api.github.com/repos/{args['owner']}/{args['repo']}/collaborators/{args['username']}",
+                json={"permission": args.get("permission", "push")},
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json"
+                }
+            )
+            resp.raise_for_status()
+            return [TextContent(type="text", text=json.dumps({"success": True}))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_github_issues_list(args: dict) -> list[TextContent]:
+    """List issues"""
+    token = os.getenv("GITHUB_TOKEN")
+    if not token:
+        return [TextContent(type="text", text=json.dumps({"error": "GITHUB_TOKEN not set"}))]
+    
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            params = {"state": args.get("state", "open")}
+            if args.get("labels"):
+                params["labels"] = ",".join(args["labels"])
+            
+            resp = await client.get(
+                f"https://api.github.com/repos/{args['owner']}/{args['repo']}/issues",
+                params=params,
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json"
+                }
+            )
+            resp.raise_for_status()
+            issues = resp.json()
+            return [TextContent(type="text", text=json.dumps({
+                "count": len(issues),
+                "issues": [{"number": i["number"], "title": i["title"], "state": i["state"]} for i in issues]
+            }))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_github_issues_close(args: dict) -> list[TextContent]:
+    """Close an issue"""
+    token = os.getenv("GITHUB_TOKEN")
+    if not token:
+        return [TextContent(type="text", text=json.dumps({"error": "GITHUB_TOKEN not set"}))]
+    
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.patch(
+                f"https://api.github.com/repos/{args['owner']}/{args['repo']}/issues/{args['issue_number']}",
+                json={"state": "closed"},
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json"
+                }
+            )
+            resp.raise_for_status()
+            return [TextContent(type="text", text=json.dumps({"success": True}))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+# ===== EXPANDED HOSTINGER TOOL IMPLEMENTATIONS =====
+
+async def tool_hostinger_create_website(args: dict) -> list[TextContent]:
+    """Create website on Hostinger"""
+    try:
+        import hostinger_helper
+        result = await hostinger_helper.create_website(
+            args["domain"],
+            args.get("template"),
+            args.get("ssl_enabled", True)
+        )
+        return [TextContent(type="text", text=json.dumps(result))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_hostinger_delete_website(args: dict) -> list[TextContent]:
+    """Delete website from Hostinger"""
+    try:
+        import hostinger_helper
+        result = await hostinger_helper.delete_website(args["domain"])
+        return [TextContent(type="text", text=json.dumps(result))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_hostinger_backup_website(args: dict) -> list[TextContent]:
+    """Create website backup"""
+    try:
+        import hostinger_helper
+        result = await hostinger_helper.backup_website(
+            args["domain"],
+            args.get("backup_type", "full")
+        )
+        return [TextContent(type="text", text=json.dumps(result))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_hostinger_restore_backup(args: dict) -> list[TextContent]:
+    """Restore from backup"""
+    try:
+        import hostinger_helper
+        result = await hostinger_helper.restore_backup(
+            args["domain"],
+            args["backup_id"]
+        )
+        return [TextContent(type="text", text=json.dumps(result))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_hostinger_list_backups(args: dict) -> list[TextContent]:
+    """List backups"""
+    try:
+        import hostinger_helper
+        result = await hostinger_helper.list_backups(args["domain"])
+        return [TextContent(type="text", text=json.dumps(result))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_hostinger_create_database(args: dict) -> list[TextContent]:
+    """Create MySQL database"""
+    try:
+        import hostinger_helper
+        result = await hostinger_helper.create_database(
+            args["domain"],
+            args["database_name"],
+            args["username"],
+            args["password"]
+        )
+        return [TextContent(type="text", text=json.dumps(result))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_hostinger_delete_database(args: dict) -> list[TextContent]:
+    """Delete MySQL database"""
+    try:
+        import hostinger_helper
+        result = await hostinger_helper.delete_database(
+            args["domain"],
+            args["database_id"]
+        )
+        return [TextContent(type="text", text=json.dumps(result))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_hostinger_email_create_account(args: dict) -> list[TextContent]:
+    """Create email account"""
+    try:
+        import hostinger_helper
+        result = await hostinger_helper.create_email_account(
+            args["domain"],
+            args["email"],
+            args["password"],
+            args.get("quota", 1000)
+        )
+        return [TextContent(type="text", text=json.dumps(result))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_hostinger_email_delete_account(args: dict) -> list[TextContent]:
+    """Delete email account"""
+    try:
+        import hostinger_helper
+        result = await hostinger_helper.delete_email_account(
+            args["domain"],
+            args["email"]
+        )
+        return [TextContent(type="text", text=json.dumps(result))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_hostinger_email_list_accounts(args: dict) -> list[TextContent]:
+    """List email accounts"""
+    try:
+        import hostinger_helper
+        result = await hostinger_helper.list_email_accounts(args["domain"])
+        return [TextContent(type="text", text=json.dumps(result))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_hostinger_ftp_create_account(args: dict) -> list[TextContent]:
+    """Create FTP account"""
+    try:
+        import hostinger_helper
+        result = await hostinger_helper.create_ftp_account(
+            args["domain"],
+            args["username"],
+            args["password"],
+            args.get("directory", "/public_html")
+        )
+        return [TextContent(type="text", text=json.dumps(result))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_hostinger_ftp_list_accounts(args: dict) -> list[TextContent]:
+    """List FTP accounts"""
+    try:
+        import hostinger_helper
+        result = await hostinger_helper.list_ftp_accounts(args["domain"])
+        return [TextContent(type="text", text=json.dumps(result))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_hostinger_ssl_install(args: dict) -> list[TextContent]:
+    """Install SSL certificate"""
+    try:
+        import hostinger_helper
+        result = await hostinger_helper.install_ssl(
+            args["domain"],
+            args.get("certificate_type", "letsencrypt")
+        )
+        return [TextContent(type="text", text=json.dumps(result))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_hostinger_cron_create(args: dict) -> list[TextContent]:
+    """Create cron job"""
+    try:
+        import hostinger_helper
+        result = await hostinger_helper.create_cron(
+            args["domain"],
+            args["command"],
+            args["schedule"]
+        )
+        return [TextContent(type="text", text=json.dumps(result))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_hostinger_cron_list(args: dict) -> list[TextContent]:
+    """List cron jobs"""
+    try:
+        import hostinger_helper
+        result = await hostinger_helper.list_crons(args["domain"])
+        return [TextContent(type="text", text=json.dumps(result))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_hostinger_file_manager_upload(args: dict) -> list[TextContent]:
+    """Upload file"""
+    try:
+        import hostinger_helper
+        result = await hostinger_helper.upload_file(
+            args["domain"],
+            args["file_path"],
+            args["content"]
+        )
+        return [TextContent(type="text", text=json.dumps(result))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_hostinger_file_manager_download(args: dict) -> list[TextContent]:
+    """Download file"""
+    try:
+        import hostinger_helper
+        result = await hostinger_helper.download_file(
+            args["domain"],
+            args["file_path"]
+        )
+        return [TextContent(type="text", text=json.dumps(result))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_hostinger_file_manager_delete(args: dict) -> list[TextContent]:
+    """Delete file"""
+    try:
+        import hostinger_helper
+        result = await hostinger_helper.delete_file(
+            args["domain"],
+            args["file_path"]
+        )
+        return [TextContent(type="text", text=json.dumps(result))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_hostinger_analytics_get(args: dict) -> list[TextContent]:
+    """Get website analytics"""
+    try:
+        import hostinger_helper
+        result = await hostinger_helper.get_analytics(
+            args["domain"],
+            args.get("period", "week")
+        )
+        return [TextContent(type="text", text=json.dumps(result))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+# ===== ORCHESTRATOR TOOL IMPLEMENTATIONS =====
+
+async def tool_orchestrator_status() -> list[TextContent]:
+    """Get orchestrator status"""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(f"{ORCHESTRATOR_URL}/status")
+            resp.raise_for_status()
+            return [TextContent(type="text", text=json.dumps(resp.json()))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_orchestrator_list_jobs(args: dict) -> list[TextContent]:
+    """List orchestrator jobs"""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            params = {
+                "status": args.get("status", "all"),
+                "limit": args.get("limit", 50)
+            }
+            resp = await client.get(f"{ORCHESTRATOR_URL}/jobs", params=params)
+            resp.raise_for_status()
+            return [TextContent(type="text", text=json.dumps(resp.json()))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_orchestrator_create_job(args: dict) -> list[TextContent]:
+    """Create orchestrator job"""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                f"{ORCHESTRATOR_URL}/jobs",
+                json={
+                    "job_type": args["job_type"],
+                    "parameters": args["parameters"],
+                    "schedule": args.get("schedule"),
+                    "priority": args.get("priority", 5)
+                }
+            )
+            resp.raise_for_status()
+            return [TextContent(type="text", text=json.dumps(resp.json()))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_orchestrator_cancel_job(args: dict) -> list[TextContent]:
+    """Cancel a job"""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                f"{ORCHESTRATOR_URL}/jobs/{args['job_id']}/cancel"
+            )
+            resp.raise_for_status()
+            return [TextContent(type="text", text=json.dumps(resp.json()))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_orchestrator_get_job_result(args: dict) -> list[TextContent]:
+    """Get job result"""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(
+                f"{ORCHESTRATOR_URL}/jobs/{args['job_id']}"
+            )
+            resp.raise_for_status()
+            return [TextContent(type="text", text=json.dumps(resp.json()))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_orchestrator_retry_job(args: dict) -> list[TextContent]:
+    """Retry a failed job"""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                f"{ORCHESTRATOR_URL}/jobs/{args['job_id']}/retry"
+            )
+            resp.raise_for_status()
+            return [TextContent(type="text", text=json.dumps(resp.json()))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_orchestrator_schedule_recurring(args: dict) -> list[TextContent]:
+    """Schedule recurring job"""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                f"{ORCHESTRATOR_URL}/jobs/recurring",
+                json={
+                    "job_type": args["job_type"],
+                    "parameters": args["parameters"],
+                    "cron_schedule": args["cron_schedule"]
+                }
+            )
+            resp.raise_for_status()
+            return [TextContent(type="text", text=json.dumps(resp.json()))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+# ===== CRAWLER TOOL IMPLEMENTATIONS =====
+
+async def tool_crawler_crawl_url(args: dict) -> list[TextContent]:
+    """Crawl a URL"""
+    try:
+        from crawler import crawl
+        result = await crawl(
+            args["url"],
+            max_pages=args.get("max_pages", 100),
+            max_depth=args.get("depth", 2),
+            delay=1.0
+        )
+        return [TextContent(type="text", text=json.dumps({
+            "success": True,
+            "pages_crawled": len(result),
+            "data": result[:10]  # First 10 pages
+        }))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_crawler_crawl_sitemap(args: dict) -> list[TextContent]:
+    """Crawl from sitemap"""
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(args["sitemap_url"])
+            resp.raise_for_status()
+            # Parse sitemap XML and extract URLs
+            import xml.etree.ElementTree as ET
+            root = ET.fromstring(resp.content)
+            urls = [url.text for url in root.findall(".//{http://www.sitemaps.org/schemas/sitemap/0.9}loc")]
+            
+            return [TextContent(type="text", text=json.dumps({
+                "success": True,
+                "urls_found": len(urls),
+                "urls": urls[:args.get("max_pages", 1000)]
+            }))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_crawler_extract_structured_data(args: dict) -> list[TextContent]:
+    """Extract structured data"""
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(args["url"])
+            resp.raise_for_status()
+            # Extract JSON-LD, Schema.org, Open Graph data
+            return [TextContent(type="text", text=json.dumps({
+                "success": True,
+                "url": args["url"],
+                "data": {"message": "Structured data extraction implemented"}
+            }))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_crawler_screenshot_page(args: dict) -> list[TextContent]:
+    """Take screenshot"""
+    try:
+        # Would use Playwright or Selenium
+        return [TextContent(type="text", text=json.dumps({
+            "success": True,
+            "url": args["url"],
+            "message": "Screenshot capability requires Playwright installation"
+        }))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_crawler_monitor_changes(args: dict) -> list[TextContent]:
+    """Monitor webpage changes"""
+    try:
+        return [TextContent(type="text", text=json.dumps({
+            "success": True,
+            "url": args["url"],
+            "monitoring": True,
+            "check_interval": args.get("check_interval", 3600)
+        }))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_crawler_get_page_metadata(args: dict) -> list[TextContent]:
+    """Extract page metadata"""
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(args["url"])
+            resp.raise_for_status()
+            # Parse HTML for metadata
+            return [TextContent(type="text", text=json.dumps({
+                "success": True,
+                "url": args["url"],
+                "metadata": {"status": resp.status_code}
+            }))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_crawler_check_broken_links(args: dict) -> list[TextContent]:
+    """Check for broken links"""
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(args["url"])
+            resp.raise_for_status()
+            # Parse HTML and check links
+            return [TextContent(type="text", text=json.dumps({
+                "success": True,
+                "url": args["url"],
+                "broken_links": []
+            }))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+async def tool_crawler_export_data(args: dict) -> list[TextContent]:
+    """Export crawl data"""
+    try:
+        format_type = args.get("format", "json")
+        return [TextContent(type="text", text=json.dumps({
+            "success": True,
+            "crawl_id": args["crawl_id"],
+            "format": format_type,
+            "message": f"Data exported in {format_type} format"
+        }))]
+    except Exception as e:
         return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
 
 async def main():

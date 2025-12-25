@@ -1,0 +1,15 @@
+{
+  "name": "github",
+  "status": "skipped",
+  "checks": [
+    {
+      "check": "token_present",
+      "result": false
+    },
+    {
+      "check": "pages_status",
+      "result": "pending"
+    }
+  ],
+  "note": "Set GITHUB_TOKEN to fully enable GitHub tests"
+}

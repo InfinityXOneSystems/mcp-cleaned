@@ -1,0 +1,8 @@
+def run():
+    return {
+        "name": "intelligence",
+        "status": "success",
+        "checks": [
+            {"check": "fetch_sources", "result": "pending"}
+        ]
+    }

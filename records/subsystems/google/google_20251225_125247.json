@@ -1,0 +1,15 @@
+{
+  "name": "google",
+  "status": "skipped",
+  "checks": [
+    {
+      "check": "credentials_present",
+      "result": false
+    },
+    {
+      "check": "list_projects",
+      "result": "pending"
+    }
+  ],
+  "note": "GOOGLE_APPLICATION_CREDENTIALS not set"
+}

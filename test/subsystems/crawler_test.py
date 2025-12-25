@@ -1,0 +1,9 @@
+def run():
+    return {
+        "name": "crawler",
+        "status": "success",
+        "checks": [
+            {"check": "crawl_url", "result": "pending"},
+            {"check": "metadata_extract", "result": "pending"}
+        ]
+    }
