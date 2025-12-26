@@ -19,4 +19,5 @@ firebase-admin
 python-dotenv
 opentelemetry-api
 opentelemetry-sdk
+opentelemetry-exporter-otlp-proto-grpc
 
