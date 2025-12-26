@@ -52,4 +52,3 @@ class StrategistAgent(BaseAgent):
             "created_at": time.time(),
         })
         return {"steps": steps}
-*** End

@@ -43,4 +43,3 @@ class DocumentorAgent(BaseAgent):
             for act in actions:
                 lines.append(f"- P{act.get('priority')}: {act.get('title')} [conf={act.get('confidence',0):.2f}]")
         return "\n".join(lines)
-*** End

@@ -47,4 +47,3 @@ class IngestorAgent(BaseAgent):
     def _normalize(self, text: str) -> str:
         text = re.sub(r"\s+", " ", text).strip()
         return text
-*** End

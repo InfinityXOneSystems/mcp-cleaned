@@ -100,4 +100,3 @@ class PrioritizedAction:
     confidence: float
     rationale: str
     governance_level: str
-*** End

@@ -36,4 +36,3 @@ class VisionaryAgent(BaseAgent):
             "created_at": time.time(),
         })
         return {"scenarios": scenarios}
-*** End

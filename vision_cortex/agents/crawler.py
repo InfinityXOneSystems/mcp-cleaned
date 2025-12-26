@@ -42,4 +42,3 @@ class CrawlerAgent(BaseAgent):
             "created_at": time.time(),
         })
         return {"observations": observations, "sources": len(sources)}
-*** End

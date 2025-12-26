@@ -40,4 +40,3 @@ class ValidatorAgent(BaseAgent):
             if "increase" in stmt and "decrease" in stmt:
                 contradictions.append({"statement": pred.get("statement"), "reason": "increase vs decrease"})
         return contradictions
-*** End

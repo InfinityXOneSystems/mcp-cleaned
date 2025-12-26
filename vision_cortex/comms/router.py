@@ -33,4 +33,3 @@ class SmartRouter:
         ctx.governance_level = enforce_governance(ctx.governance_level)
         self._logger.info("Dispatching intent=%s to role=%s governance=%s", intent, role, ctx.governance_level)
         return agent.run_task(ctx, payload.get("data", {}))
-*** End

@@ -45,4 +45,3 @@ class OrganizerAgent(BaseAgent):
             if any(k in lowered for k in keywords):
                 return theme
         return "general"
-*** End

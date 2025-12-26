@@ -71,4 +71,3 @@ class DebateCycle:
             return "no-consensus", 0.0
         median_conf = statistics.median(confidences)
         return "proceed", median_conf
-*** End

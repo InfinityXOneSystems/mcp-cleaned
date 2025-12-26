@@ -37,4 +37,3 @@ class PredictorAgent(BaseAgent):
             "created_at": time.time(),
         })
         return {"predictions": predictions}
-*** End
