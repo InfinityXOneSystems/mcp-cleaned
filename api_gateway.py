@@ -60,6 +60,12 @@ SERVICES = {
 }
 ORCHESTRATOR_URL = os.environ.get("ORCHESTRATOR_URL", "http://localhost:8080")
 
+# Cloud Run Frontend Integration
+FRONTEND_SERVICE_URL = os.environ.get(
+    "FRONTEND_SERVICE_URL",
+    "https://frontend-service-0a277877-896380409704.us-east1.run.app"
+)
+
 # In single-service mode, mount sub-apps and route all traffic via gateway
 if SERVICE_MODE == "single":
     try:
@@ -254,6 +260,38 @@ async def intelligence_cockpit():
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
         return HTMLResponse(content="<h1>Cockpit Not Found</h1><p>cockpit.html missing.</p>", status_code=404)
+
+@app.get("/frontend")
+async def frontend_proxy():
+    """Proxy Cloud Run frontend service"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(FRONTEND_SERVICE_URL, timeout=30.0)
+            return HTMLResponse(content=response.text)
+    except Exception as e:
+        return HTMLResponse(
+            content=f"<h1>Frontend Service Unavailable</h1><p>{str(e)}</p>",
+            status_code=503
+        )
+
+@app.get("/frontend/api/{path:path}")
+async def frontend_api_proxy(path: str, request: Request):
+    """Proxy API requests to frontend service"""
+    try:
+        async with httpx.AsyncClient() as client:
+            url = f"{FRONTEND_SERVICE_URL}/api/{path}"
+            response = await client.request(
+                method=request.method,
+                url=url,
+                headers=request.headers,
+                timeout=30.0
+            )
+            return JSONResponse(content=response.json())
+    except Exception as e:
+        return JSONResponse(
+            status_code=503,
+            content={"error": f"Frontend service error: {str(e)}"}
+        )
 
 @app.get("/admin")
 async def admin_console_page():
