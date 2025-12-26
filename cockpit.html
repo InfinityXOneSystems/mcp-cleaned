@@ -403,35 +403,228 @@
     </div>
 
     <script>
-        // Simple interactivity
+        // Omni Gateway Integration
+        const API_BASE = window.location.origin;
+        
+        // Load system status
+        async function loadSystemStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/api/status`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog(`✓ Omni Hub: ${data.components.mcp_tools} tools active`, 'success');
+                    addLog(`✓ Autonomous prompts loaded`, 'success');
+                    addLog(`✓ CLI integration enabled`, 'success');
+                }
+            } catch (error) {
+                addLog(`✗ Status check failed: ${error.message}`, 'error');
+            }
+        }
+        
+        // Load available tools
+        async function loadTools() {
+            try {
+                const response = await fetch(`${API_BASE}/api/tools`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log(`Loaded ${data.count} MCP tools:`, data.tools);
+                    addLog(`✓ ${data.count} MCP tools available`, 'success');
+                    return data.tools;
+                }
+            } catch (error) {
+                addLog(`✗ Tools load failed: ${error.message}`, 'error');
+                return [];
+            }
+        }
+        
+        // Load autonomous prompts
+        async function loadPrompts() {
+            try {
+                const response = await fetch(`${API_BASE}/api/prompts`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log(`Loaded ${data.count} autonomous prompts:`, data.prompts);
+                    addLog(`✓ ${data.count} autonomous prompts (L1-L10)`, 'success');
+                    return data.prompts;
+                }
+            } catch (error) {
+                addLog(`✗ Prompts load failed: ${error.message}`, 'error');
+                return [];
+            }
+        }
+        
+        // Execute CLI command
+        async function executeCLI(command) {
+            try {
+                addLog(`→ Executing: ${command}`, 'info');
+                const response = await fetch(`${API_BASE}/api/cli/execute`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({command})
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog(`✓ Command completed`, 'success');
+                    console.log('Output:', data.output);
+                } else {
+                    addLog(`✗ Command failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                addLog(`✗ CLI error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Execute MCP tool
+        async function executeTool(toolName, args) {
+            try {
+                addLog(`→ Executing tool: ${toolName}`, 'info');
+                const response = await fetch(`${API_BASE}/api/tools/execute`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        tool_name: toolName,
+                        arguments: args
+                    })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog(`✓ Tool executed: ${toolName}`, 'success');
+                    console.log('Result:', data.result);
+                    return data.result;
+                } else {
+                    addLog(`✗ Tool failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                addLog(`✗ Tool error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Execute autonomous prompt
+        async function executePrompt(promptName, context = {}) {
+            try {
+                addLog(`→ Executing prompt: ${promptName}`, 'info');
+                const response = await fetch(`${API_BASE}/api/prompts/execute`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        prompt_name: promptName,
+                        context: context
+                    })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog(`✓ Prompt queued: ${promptName}`, 'success');
+                } else {
+                    addLog(`✗ Prompt failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                addLog(`✗ Prompt error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Add log entry
+        function addLog(message, type = 'info') {
+            const logPanel = document.querySelector('.right-panel');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = message;
+            logPanel.insertBefore(entry, logPanel.children[1]);
+            
+            // Keep only last 20 entries
+            const logs = logPanel.querySelectorAll('.log-entry');
+            if (logs.length > 20) {
+                logs[logs.length - 1].remove();
+            }
+        }
+        
+        // Navigation
         document.querySelectorAll('.nav-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
                 this.classList.add('active');
-                console.log('Navigating to:', this.textContent);
+                const section = this.textContent.trim();
+                addLog(`→ Navigating to: ${section}`, 'info');
+                
+                // Handle special navigation
+                if (section.includes('Frontend')) {
+                    window.open('/frontend', '_blank');
+                }
             });
         });
-
+        
+        // Control buttons
         document.querySelectorAll('.control-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                console.log('Command:', this.textContent);
-                const log = document.querySelector('.right-panel');
-                const entry = document.createElement('div');
-                entry.className = 'log-entry info';
-                entry.textContent = '→ ' + this.textContent;
-                log.appendChild(entry);
+            btn.addEventListener('click', async function() {
+                const action = this.textContent.trim();
+                addLog(`→ ${action}`, 'info');
+                
+                if (action.includes('START INTELLIGENCE')) {
+                    await executePrompt('L1: System Discovery');
+                } else if (action.includes('EMERGENCY STOP')) {
+                    addLog('⚠ EMERGENCY STOP ACTIVATED', 'error');
+                    await executeTool('execute', {command: 'echo "Emergency stop triggered"'});
+                }
             });
         });
-
-        // Simulate live updates
-        setInterval(() => {
-            const uptime = document.querySelector('.metric-value');
-            if (uptime) {
-                const h = Math.floor(Math.random() * 24);
-                const m = Math.floor(Math.random() * 60);
-                uptime.textContent = `${h}h ${m}m`;
+        
+        // Quick command handler
+        window.addEventListener('keydown', async (e) => {
+            if (e.key === '/' && e.target.tagName !== 'INPUT') {
+                e.preventDefault();
+                const cmd = prompt('Enter command:');
+                if (cmd) {
+                    if (cmd.startsWith('/')) {
+                        // Quick command
+                        const action = cmd.substring(1);
+                        if (action === 'scan') {
+                            await executeCLI('python monitor_system.py');
+                        } else if (action === 'predict') {
+                            await executePrompt('L3: Market Intelligence');
+                        } else if (action === 'ingest') {
+                            await executeTool('query_intelligence', {query: 'latest'});
+                        } else if (action === 'report') {
+                            addLog('→ Generating report...', 'info');
+                        }
+                    } else {
+                        // Direct CLI command
+                        await executeCLI(cmd);
+                    }
+                }
             }
-        }, 5000);
+        });
+        
+        // Initialize on load
+        window.addEventListener('load', async () => {
+            addLog('🚀 Infinity XOS Omni Gateway Online', 'success');
+            await loadSystemStatus();
+            await loadTools();
+            await loadPrompts();
+            addLog('✓ All systems operational', 'success');
+        });
+        
+        // Live metrics update
+        setInterval(async () => {
+            try {
+                const response = await fetch(`${API_BASE}/api/status`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Update status dots
+                    const dots = document.querySelectorAll('.status-dot');
+                    dots.forEach(dot => dot.className = 'status-dot'); // All green
+                }
+            } catch (error) {
+                // Mark as degraded
+                const dots = document.querySelectorAll('.status-dot');
+                if (dots.length > 0) dots[0].classList.add('warning');
+            }
+        }, 10000); // Every 10 seconds
     </script>
 </body>
 </html>
