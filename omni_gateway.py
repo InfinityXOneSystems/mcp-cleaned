@@ -2,7 +2,7 @@
 Omni Gateway - FastAPI wrapper for main_extended.py MCP server
 Exposes 59 Omni Hub tools via HTTP + serves Intelligence Cockpit UI
 """
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Header
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -18,6 +18,15 @@ from google.api_core.exceptions import GoogleAPIError
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Initialize gateway environment early (centralized env loader)
+try:
+    # local import; gateway_env is added to the repo to centralize env handling
+    from gateway_env import init_gateway_env
+    init_gateway_env()
+except Exception:
+    # If the loader is not present or fails, continue with existing envs
+    logger.debug("gateway_env not loaded or init failed; continuing with existing environment variables")
 
 # Import Omni Hub MCP server (optional - graceful degradation)
 sys.path.insert(0, os.path.dirname(__file__))
@@ -56,7 +65,11 @@ FRONTEND_SERVICE_URL = os.environ.get(
 )
 
 # Firestore configuration
-FIRESTORE_PROJECT = os.environ.get("FIRESTORE_PROJECT")
+FIRESTORE_PROJECT = (
+    os.environ.get("FIRESTORE_PROJECT")
+    or os.environ.get("FIRESTORE_PROJECT_ID")
+    or "infinity-x-one-systems"
+)
 FIRESTORE_COLLECTION = os.environ.get("FIRESTORE_COLLECTION", "mcp_memory")
 
 # The 110% Protocol (enterprise-grade, abbreviated)
@@ -96,6 +109,8 @@ def init_firestore():
             logger.warning("FIRESTORE_PROJECT not set; Firestore disabled")
             _firestore_available = False
             return None
+        if FIRESTORE_PROJECT == "infinity-x-one-systems":
+            logger.info("Using default FIRESTORE_PROJECT=%s", FIRESTORE_PROJECT)
         _firestore_client = firestore.Client(project=FIRESTORE_PROJECT)
         _firestore_available = True
         logger.info("Connected to Firestore project=%s", FIRESTORE_PROJECT)
@@ -118,7 +133,7 @@ async def load_110_protocol():
     try:
         doc_ref = client.collection(FIRESTORE_COLLECTION).document("protocol_110")
         doc_ref.set(PROTOCOL_110)
-        logger.info("110% Protocol written to Firestore/%s/protocol_110", FIRESTORE_COLLECTION)
+        logger.info(f"110% Protocol written to Firestore/{FIRESTORE_COLLECTION}/protocol_110")
         return True
     except Exception as e:
         logger.error(f"Failed to write protocol to Firestore: {e}")
@@ -379,6 +394,111 @@ async def frontend_api_proxy(path: str, request: Request):
             status_code=503,
             content={"error": f"Frontend service error: {str(e)}"}
         )
+
+
+# Mount MCP HTTP Adapter (OpenAPI/Custom GPT compatible)
+try:
+    # Prefer clean ASCII adapter to avoid non-ASCII import issues
+    from mcp_http_adapter_ascii import router as mcp_router
+    app.include_router(mcp_router)
+    logger.info("✓ MCP HTTP Adapter (ASCII) mounted: /mcp/* endpoints available")
+except Exception as e:
+    logger.warning(f"⚠ ASCII MCP Adapter failed: {e}; trying fallback")
+    try:
+        from mcp_http_adapter import router as mcp_router
+        app.include_router(mcp_router)
+        logger.info("✓ MCP HTTP Adapter mounted: /mcp/* endpoints available")
+    except Exception as e2:
+        logger.warning(f"⚠ Failed to mount MCP HTTP Adapter: {e2}")
+
+# Alias endpoints for Custom GPT compatibility
+# Some clients expect /mcp/listMCPTools and /mcp/executeMCPTool.
+# Provide thin wrappers that map to the Omni Hub server directly.
+@app.get("/mcp/listMCPTools")
+async def mcp_list_tools_alias():
+    try:
+        # Read tools directly from main_extended to avoid server method quirks
+        from main_extended import TOOLS as MCP_TOOLS
+        tools = [
+            {
+                "name": getattr(tool, "name", None),
+                "description": getattr(tool, "description", ""),
+                "governance": check_governance(getattr(tool, "name", "")),
+            }
+            for tool in MCP_TOOLS
+        ]
+        return JSONResponse(content={"success": True, "count": len(tools), "tools": tools})
+    except Exception as e:
+        logger.error(f"Alias listMCPTools failed: {e}")
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+class MCPExecuteAlias(BaseModel):
+    toolName: Optional[str] = None
+    tool_name: Optional[str] = None
+    arguments: Dict[str, Any] = {}
+    dryRun: Optional[bool] = False
+
+@app.post("/mcp/executeMCPTool")
+async def mcp_execute_tool_alias(req: MCPExecuteAlias, x_mcp_key: Optional[str] = Header(None)):
+    try:
+        name = req.toolName or req.tool_name
+        if not name:
+            return JSONResponse(status_code=400, content={"success": False, "error": "Missing toolName"})
+
+        # Allow dry-run without authentication to inspect parameters safely
+        if req.dryRun:
+            # Provide minimal parameter hint via governance and available registry if possible
+            try:
+                schema = next((t.inputSchema for t in mcp_server.list_tools() if t.name == name), {})
+                params = list((schema.get("properties") or {}).keys())
+            except Exception:
+                params = []
+            return JSONResponse(content={"success": True, "tool": name, "dry_run": True, "parameters": params})
+
+        # Enforce SAFE_MODE for actual execution
+        safe_mode = os.environ.get("SAFE_MODE", "true").lower() in ("1", "true", "yes")
+        if safe_mode:
+            api_key = os.environ.get("MCP_API_KEY")
+            if not x_mcp_key or x_mcp_key != api_key:
+                return JSONResponse(status_code=401, content={"success": False, "error": "Missing or invalid X-MCP-KEY"})
+
+        result = await mcp_server.call_tool(name, req.arguments or {})
+        payload = None
+        try:
+            if isinstance(result, list) and len(result) > 0 and hasattr(result[0], "text"):
+                payload = json.loads(result[0].text)
+            else:
+                payload = result
+        except Exception:
+            payload = result
+        return JSONResponse(content={"success": True, "tool": name, "result": payload})
+    except Exception as e:
+        logger.error(f"Alias executeMCPTool failed: {e}")
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+# Mount intelligence endpoints (arrival, mirror-business, pipeline-shadow)
+try:
+    from intelligence_endpoints import router as intelligence_router
+    app.include_router(intelligence_router, prefix="/v1/intelligence")
+    logger.info("Intelligence endpoints mounted: /v1/intelligence")
+except Exception as e:
+    logger.warning(f"Failed to mount intelligence endpoints: {e}")
+
+# Mount credential gateway
+try:
+    from credential_gateway import router as credential_router
+    app.include_router(credential_router)
+    logger.info("✓ Credential gateway mounted: /credentials/* endpoints")
+except Exception as e:
+    logger.warning(f"⚠ Failed to mount credential gateway: {e}")
+
+# Mount autonomous orchestrator
+try:
+    from autonomous_orchestrator import router as autonomy_router
+    app.include_router(autonomy_router)
+    logger.info("✓ Autonomous orchestrator mounted: /autonomy/* endpoints")
+except Exception as e:
+    logger.warning(f"⚠ Failed to mount autonomous orchestrator: {e}")
 
 # ===== HEALTH CHECK =====
 @app.get("/health")

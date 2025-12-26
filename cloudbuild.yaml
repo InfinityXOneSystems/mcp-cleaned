@@ -24,7 +24,15 @@ steps:
           --platform=managed \
           --allow-unauthenticated \
           --port=8000 \
-          --set-env-vars=SERVICE_MODE=single,DOC_EV_MODE=safe
+          --service-account=mcp-gateway-sa@${_PROJECT}.iam.gserviceaccount.com \
+          --set-env-vars=SERVICE_MODE=single,FIRESTORE_PROJECT=${_PROJECT},FIRESTORE_COLLECTION=mcp_memory,SAFE_MODE=true \
+          --set-secrets=MCP_API_KEY=mcp-api-key:latest,CREDENTIAL_GATEWAY_TOKEN=mcp-api-key:latest,GOOGLE_APPLICATION_CREDENTIALS=/secrets/workspace-sa:latest \
+          --timeout=3600 \
+          --memory=2Gi \
+          --cpu=2 \
+          --min-instances=1 \
+          --max-instances=10 \
+          --concurrency=80
 substitutions:
   _PROJECT: infinity-x-one-systems
 options:
