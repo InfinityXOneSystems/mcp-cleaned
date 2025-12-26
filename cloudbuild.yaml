@@ -26,7 +26,7 @@ steps:
           --port=8000 \
           --service-account=mcp-gateway-sa@${_PROJECT}.iam.gserviceaccount.com \
           --set-env-vars=SERVICE_MODE=single,FIRESTORE_PROJECT=${_PROJECT},FIRESTORE_COLLECTION=mcp_memory,SAFE_MODE=true \
-          --set-secrets=MCP_API_KEY=mcp-api-key:latest,CREDENTIAL_GATEWAY_TOKEN=mcp-api-key:latest,GOOGLE_APPLICATION_CREDENTIALS=/secrets/workspace-sa:latest \
+          --set-secrets=MCP_API_KEY=mcp-api-key:latest,CREDENTIAL_GATEWAY_TOKEN=mcp-api-key:latest \
           --timeout=3600 \
           --memory=2Gi \
           --cpu=2 \
