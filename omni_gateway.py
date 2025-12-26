@@ -14,12 +14,24 @@ import asyncio
 import logging
 from typing import Optional, Dict, Any, List
 
-# Import Omni Hub MCP server
-sys.path.insert(0, os.path.dirname(__file__))
-from main_extended import server as mcp_server, check_governance
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Import Omni Hub MCP server (optional - graceful degradation)
+sys.path.insert(0, os.path.dirname(__file__))
+try:
+    from main_extended import server as mcp_server, check_governance
+    MCP_AVAILABLE = True
+    logger.info("✓ MCP Server loaded successfully")
+except Exception as e:
+    logger.warning(f"⚠ MCP Server unavailable: {e}")
+    MCP_AVAILABLE = False
+    # Mock MCP server for graceful degradation
+    class MockMCPServer:
+        def list_tools(self): return []
+        async def call_tool(self, name, args): return [type('obj', (), {'text': json.dumps({"error": "MCP unavailable"})})]
+    mcp_server = MockMCPServer()
+    def check_governance(tool_name): return {"level": "MEDIUM", "allowed": True, "reason": "Mock", "rate_limited": False}
 
 app = FastAPI(
     title="Infinity XOS Omni Gateway",
@@ -126,6 +138,14 @@ async def execute_prompt(request: Request):
 async def list_tools():
     """List all available MCP tools"""
     try:
+        if not MCP_AVAILABLE:
+            return JSONResponse(content={
+                "success": False,
+                "error": "MCP Server not available",
+                "count": 0,
+                "tools": []
+            })
+        
         tools = [
             {
                 "name": tool.name,
@@ -220,13 +240,13 @@ async def execute_cli_command(request: Request):
 async def get_system_status():
     """Get system status and metrics"""
     try:
-        tools_count = len(mcp_server.list_tools())
+        tools_count = len(mcp_server.list_tools()) if MCP_AVAILABLE else 0
         
         return JSONResponse(content={
             "success": True,
             "status": "operational",
             "components": {
-                "omni_hub": "active",
+                "omni_hub": "active" if MCP_AVAILABLE else "degraded",
                 "mcp_tools": tools_count,
                 "cockpit": "online",
                 "frontend_service": FRONTEND_SERVICE_URL,
