@@ -124,6 +124,60 @@ def create_routes(
             "count": len(agents)
         }
 
+    @router.get("/agent_templates", response_model=List[AgentConfig])
+    async def get_agent_templates(api_key: bool = Depends(verify_api_key)):
+        """Return a set of pre-made agent templates for UI dropdowns.
+
+        Each template includes `role`, `name`, `description`, and `config` defaults.
+        """
+        templates = [
+            AgentConfig(
+                role=AgentRole.VISIONARY,
+                name="Visionary (Futures)",
+                description="Generates high-level visions, scenarios, and strategic narratives.",
+                config={"creativity": 0.9, "depth": "long", "max_tokens": 800},
+            ),
+            AgentConfig(
+                role=AgentRole.STRATEGIST,
+                name="Strategist (Plans)",
+                description="Transforms visions into prioritized plans and OKRs.",
+                config={"creativity": 0.6, "horizon_days": 90, "max_actions": 10},
+            ),
+            AgentConfig(
+                role=AgentRole.BUILDER,
+                name="Builder (Executor)",
+                description="Produces runnable artifacts, code, and infra steps.",
+                config={"tools": ["git","docker"], "max_retries": 2},
+            ),
+            AgentConfig(
+                role=AgentRole.CRITIC,
+                name="Critic (Validator)",
+                description="Reviews proposals, finds gaps, and scores risks.",
+                config={"strictness": "high", "checks": ["security","compliance"]},
+            ),
+        ]
+        return templates
+
+    class AgentCreateRequest(BaseModel):
+        template: AgentConfig
+        overrides: Optional[Dict[str, Any]] = None
+
+    @router.post("/agents/create")
+    async def create_agent_instance(
+        body: AgentCreateRequest,
+        api_key: bool = Depends(verify_api_key)
+    ):
+        """Create and persist an agent instance from a template plus optional overrides."""
+        try:
+            stored = factory.create_agent_instance(body.template, body.overrides)
+            return {
+                "created": True,
+                "instance": stored
+            }
+        except Exception as e:
+            logger.error(f"Create agent instance failed: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
     @router.post("/agents/{role}/execute")
     async def execute_agent(
         role: str,

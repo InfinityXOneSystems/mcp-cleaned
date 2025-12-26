@@ -327,6 +327,8 @@ class AgentFactory:
         """Initialize factory"""
         self.memory = memory or MemoryLayer()
         self.agents = {}
+        # Simple in-memory registry for created agent instances
+        self._registry: Dict[str, Dict[str, Any]] = {}
         self.logger = logging.getLogger("AgentFactory")
 
     def create_agent(self, role: str, config: Optional[AgentConfig] = None) -> BaseAgent:
@@ -398,6 +400,44 @@ class AgentFactory:
 
             self.logger.info(f"✓ Pipeline completed with {len(results)} tasks")
             return results
+
+    def create_agent_instance(self, template: AgentConfig, overrides: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Create a persisted agent instance (in-memory registry).
+
+        Returns a dict with instance_id and stored config.
+        """
+        import uuid
+
+        # Merge template config with overrides
+        cfg = template.dict()
+        if overrides:
+            cfg.update(overrides)
+
+        instance_id = f"agent_{uuid.uuid4().hex[:8]}"
+
+        stored = {
+            "id": instance_id,
+            "role": cfg.get("role"),
+            "name": cfg.get("name", f"{cfg.get('role')}_instance"),
+            "config": cfg,
+            "created_at": datetime.now().isoformat()
+        }
+
+        # persist in simple registry
+        self._registry[instance_id] = stored
+
+        # eagerly create runtime agent (so execute calls work)
+        try:
+            self.create_agent(stored["role"], AgentConfig(**cfg))
+        except Exception:
+            # ignore creation errors; registry remains
+            pass
+
+        return stored
+
+    def list_agent_instances(self) -> List[Dict[str, Any]]:
+        """Return list of created agent instances"""
+        return list(self._registry.values())
 
         except Exception as e:
             self.logger.error(f"Pipeline execution failed: {e}")

@@ -15,6 +15,10 @@ import logging
 from typing import Optional, Dict, Any, List
 from google.cloud import firestore
 from google.api_core.exceptions import GoogleAPIError
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -584,6 +588,21 @@ async def update_checklist(item: ChecklistUpdate):
             return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
 
     return JSONResponse(content={"success": True, "message": "Checklist updated (in-memory only)"})
+
+# Set up OpenTelemetry tracing
+trace.set_tracer_provider(TracerProvider())
+tracer_provider = trace.get_tracer_provider()
+otlp_exporter = OTLPSpanExporter(endpoint="http://localhost:4317", insecure=True)
+span_processor = BatchSpanProcessor(otlp_exporter)
+tracer_provider.add_span_processor(span_processor)
+
+tracer = trace.get_tracer(__name__)
+
+@app.middleware("http")
+async def add_tracing(request, call_next):
+    with tracer.start_as_current_span("request"):
+        response = await call_next(request)
+    return response
 
 if __name__ == "__main__":
     import uvicorn

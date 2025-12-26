@@ -42,7 +42,7 @@ logger = logging.getLogger("rehydrate_master")
 FIRESTORE_PROJECT = os.environ.get('FIRESTORE_PROJECT') or os.environ.get('FIRESTORE_PROJECT_ID') or 'infinity-x-one-systems'
 FIRESTORE_COLLECTION = os.environ.get('FIRESTORE_COLLECTION', 'mcp_memory')
 LOCAL_MANIFEST_PATH = os.path.join(os.path.dirname(__file__), 'rehydrate_manifest.json')
-DEFAULT_GATEWAY_URL = os.environ.get('GATEWAY_URL') or 'https://gateway-896380409704.us-east1.run.app'
+DEFAULT_GATEWAY_URL = os.environ.get('GATEWAY_URL') or 'https://gateway.infinityxoneintelligence.com'
 
 
 def build_system_index() -> List[Dict[str, Any]]:

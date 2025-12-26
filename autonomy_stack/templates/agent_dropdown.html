@@ -1,0 +1,82 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Agent Dropdown Example</title>
+</head>
+<body>
+  <h3>Select a Pre-made Agent</h3>
+  <select id="agentSelect">
+    <option value="">-- choose an agent --</option>
+  </select>
+
+  <div id="agentDetails" style="margin-top:12px"></div>
+  <div style="margin-top:12px">
+    <label for="overrides">Overrides (JSON):</label><br />
+    <textarea id="overrides" rows="4" cols="60" placeholder='{"name":"My Visionary","temperature":0.8}'></textarea>
+    <br />
+    <button id="createBtn">Create Agent</button>
+    <div id="createResult" style="margin-top:8px"></div>
+  </div>
+
+  <script>
+    async function loadTemplates() {
+      try {
+        const resp = await fetch('/autonomy/agent_templates', { headers: { 'X-API-KEY': (window.__MCP_API_KEY || '') } });
+        if (!resp.ok) throw new Error('Failed to load templates');
+        const templates = await resp.json();
+        const sel = document.getElementById('agentSelect');
+        templates.forEach(t => {
+          const opt = document.createElement('option');
+          opt.value = JSON.stringify(t);
+          opt.textContent = `${t.name} — ${t.role}`;
+          sel.appendChild(opt);
+        });
+
+        sel.addEventListener('change', (e) => {
+          const v = e.target.value;
+          const details = document.getElementById('agentDetails');
+          if (!v) { details.innerHTML = ''; return; }
+          const obj = JSON.parse(v);
+          details.innerHTML = `<pre>${JSON.stringify(obj, null, 2)}</pre>`;
+        });
+
+        document.getElementById('createBtn').addEventListener('click', async () => {
+          const selected = sel.value;
+          if (!selected) return alert('Choose a template first');
+          const template = JSON.parse(selected);
+          let overrides = {};
+          try {
+            const otext = document.getElementById('overrides').value.trim();
+            if (otext) overrides = JSON.parse(otext);
+          } catch (err) {
+            return alert('Overrides must be valid JSON');
+          }
+
+          const payload = { template, overrides };
+
+          try {
+            const resp = await fetch('/autonomy/agents/create', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-API-KEY': (window.__MCP_API_KEY || '')
+              },
+              body: JSON.stringify(payload)
+            });
+            const json = await resp.json();
+            document.getElementById('createResult').innerHTML = `<pre>${JSON.stringify(json, null, 2)}</pre>`;
+          } catch (err) {
+            console.error(err);
+            document.getElementById('createResult').textContent = 'Create failed';
+          }
+        });
+      } catch (err) {
+        console.error(err);
+        document.getElementById('agentDetails').textContent = 'Error loading agent templates';
+      }
+    }
+    loadTemplates();
+  </script>
+</body>
+</html>

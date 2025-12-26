@@ -15,7 +15,8 @@ ENV_SAMPLE = {
     "FIRESTORE_PROJECT": "infinity-x-one-systems",
     "FIRESTORE_COLLECTION": "mcp_memory",
     "FRONTEND_SERVICE_URL": "https://frontend-service-...run.app",
-    "GATEWAY_URL": "https://gateway-...run.app",
+    "GATEWAY_URL": "https://gateway.infinityxoneintelligence.com",
+    "FRONTEND_SERVICE_URL": "https://ai.infinityxoneintelligence.com",
     "SERVICE_MODE": "single",
 }
 

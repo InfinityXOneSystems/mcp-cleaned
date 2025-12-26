@@ -18,6 +18,8 @@ from typing import Dict, Any, Optional, List
 import logging
 from enum import Enum
 import asyncio
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 from compliance import compliance_validator, validate_request_middleware, get_compliance_status
 from prediction_engine import log_prediction
@@ -92,6 +94,13 @@ if SERVICE_MODE == "single":
         logger.info("Single-service mode enabled: mounted dashboard, intelligence, meta, orchestrator")
     except Exception as e:
         logger.error(f"Failed to enable single-service mode: {e}")
+
+# Initialize rate limiter
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"]
+)
 
 # ===== OPENAPI SCHEMA ROUTES =====
 @app.get("/openapi/combined.yaml")
