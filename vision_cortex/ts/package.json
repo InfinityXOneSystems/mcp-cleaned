@@ -1,0 +1,28 @@
+{
+    "name": "vision-cortex",
+    "version": "1.0.0",
+    "description": "Vision Cortex — 9-Agent Cognitive Pipeline",
+    "type": "module",
+    "main": "dist/index.js",
+    "scripts": {
+        "build": "tsc",
+        "start": "node dist/index.js",
+        "dryrun": "node dist/index.js --mode=DRY_RUN",
+        "live": "node dist/index.js --mode=LIVE"
+    },
+    "dependencies": {
+        "node-fetch": "^3.3.2"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "typescript": "^5.4.0"
+    },
+    "keywords": [
+        "mcp",
+        "vision-cortex",
+        "intelligence",
+        "agents"
+    ],
+    "author": "InfinityX",
+    "license": "MIT"
+}
