@@ -1,0 +1,18 @@
+{
+    "schema_version": "v1",
+    "name_for_human": "Infinity XOS Omni",
+    "name_for_model": "infinity_xos_omni",
+    "description_for_human": "Unified Gateway + Orchestrator: predict, crawl, read, write, analyze, simulate.",
+    "description_for_model": "Provide enterprise-grade orchestration across Gateway and Orchestrator endpoints. Use safe modes for doc-evolution unless explicitly authorized.",
+    "auth": {
+        "type": "none"
+    },
+    "api": {
+        "type": "openapi",
+        "url": "http://localhost:8000/openapi/combined.yaml",
+        "is_user_authenticated": false
+    },
+    "logo_url": "http://localhost:8000/assets/investor_packet/cover.svg",
+    "contact_email": "owner@example.com",
+    "legal_info_url": "http://localhost:8000/legal"
+}

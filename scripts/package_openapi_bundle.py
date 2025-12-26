@@ -8,6 +8,7 @@ OUT = os.path.join(ROOT, 'openapi-bundle.zip')
 FILES = [
     os.path.join(ROOT, 'openapi', 'omni-gateway.yaml'),
     os.path.join(ROOT, 'openapi', 'orchestrator.yaml'),
+    os.path.join(ROOT, 'openapi', 'combined.yaml'),
 ]
 
 def main():

@@ -1,5 +1,21 @@
 # Infinity Dashboard VS Code Extension
 
+This extension opens the Infinity Monitor (Gateway/Dashboard) inside a VS Code webview for quick access.
+
+## Settings
+- `infinityDashboard.url`: URL to load (use your Cloud Run URL or local `http://localhost:8000/`).
+- `infinityDashboard.autoOpen`: auto-open on startup.
+
+## Build & Run
+```bash
+cd vscode-dashboard-extension
+npm install
+npm run build
+```
+
+Then press F5 in VS Code to launch the Extension Development Host.
+# Infinity Dashboard VS Code Extension
+
 Full-screen dashboard shell for VS Code.
 
 ## Features

@@ -9,7 +9,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 SERVICES = {
     'gateway': 'http://localhost:8000/health',
-    'dashboard': 'http://localhost:8001/health',
+    'dashboard': 'http://localhost:8001/api/portfolio',
     'intelligence': 'http://localhost:8002/health',
     'admin': 'http://localhost:8000/admin',
 }

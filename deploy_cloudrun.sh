@@ -17,10 +17,14 @@ deploy() {
     --set-env-vars=DOC_EV_MODE=safe
 }
 
-deploy gateway 8000
-deploy dashboard 8001
-deploy intelligence 8002
-deploy orchestrator 8080
-deploy memory-gateway 8003
+# Single-service deploy: only the gateway, which mounts subapps
+gcloud run deploy "gateway" \
+  --project "$PROJECT" \
+  --region "$REGION" \
+  --image "$IMAGE_PREFIX/gateway:latest" \
+  --platform managed \
+  --allow-unauthenticated \
+  --port 8000 \
+  --set-env-vars=DOC_EV_MODE=safe,SERVICE_MODE=single
 
-echo "Cloud Run deploy complete."
+echo "Cloud Run single-service deploy complete."

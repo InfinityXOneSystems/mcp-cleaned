@@ -44,7 +44,7 @@ def add_chat_message(role: str, text: str):
 # seed chat with a status line
 add_chat_message("system", "System online. Ready for commands.")
 
-# Serve dashboard HTML at root
+# Serve original Command Center SPA (black dashboard) as primary UI
 @app.get("/")
 async def root():
     with open("command_center_spa.html", "r", encoding="utf-8") as f:

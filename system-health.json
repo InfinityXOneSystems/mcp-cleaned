@@ -1,22 +1,22 @@
 {
   "gateway": {
-    "ok": false,
-    "status": null,
-    "body": "HTTPConnectionPool(host='localhost', port=8000): Max retries exceeded with url: /health (Caused by ConnectTimeoutError(<HTTPConnection(host='localhost', port=8000) at 0x229f8ee2630>, 'Connection to localhost timed out. (connect timeout=2.0)'))"
+    "ok": true,
+    "status": 200,
+    "body": "{\"status\":\"healthy\",\"service\":\"infinity-xos-gateway\",\"timestamp\":\"2025-12-25T19:01:18.053232\",\"compliance\":\"enforced\"}"
   },
   "dashboard": {
-    "ok": false,
-    "status": null,
-    "body": "HTTPConnectionPool(host='localhost', port=8001): Max retries exceeded with url: /health (Caused by ConnectTimeoutError(<HTTPConnection(host='localhost', port=8001) at 0x229faf324b0>, 'Connection to localhost timed out. (connect timeout=2.0)'))"
+    "ok": true,
+    "status": 200,
+    "body": "{\"cash_balance\":100000.0,\"positions_value\":0,\"total_value\":100000.0,\"starting_balance\":100000.0,\"total_pnl\":0.0,\"total_pnl_pct\":0.0,\"positions\":[],\"num_positions\":0}"
   },
   "intelligence": {
-    "ok": false,
-    "status": null,
-    "body": "HTTPConnectionPool(host='localhost', port=8002): Max retries exceeded with url: /health (Caused by ConnectTimeoutError(<HTTPConnection(host='localhost', port=8002) at 0x229faf32db0>, 'Connection to localhost timed out. (connect timeout=2.0)'))"
+    "ok": true,
+    "status": 200,
+    "body": "{\"status\":\"ok\",\"service\":\"intelligence_api\"}"
   },
   "admin": {
-    "ok": false,
-    "status": null,
-    "body": "HTTPConnectionPool(host='localhost', port=8000): Max retries exceeded with url: /admin (Caused by ConnectTimeoutError(<HTTPConnection(host='localhost', port=8000) at 0x229faf33590>, 'Connection to localhost timed out. (connect timeout=2.0)'))"
+    "ok": true,
+    "status": 200,
+    "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Infinity Command Center</title>\n    <script src"
   }
 }

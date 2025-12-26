@@ -7,7 +7,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fastapi import FastAPI, HTTPException, Request, Header
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import httpx
@@ -49,6 +49,7 @@ app.add_middleware(
 )
 
 DB_PATH = 'mcp_memory.db'
+SERVICE_MODE = os.environ.get("SERVICE_MODE", "multi").lower()
 
 # Service URLs
 SERVICES = {
@@ -57,6 +58,48 @@ SERVICES = {
     "meta": "http://localhost:8003",
     "mcp": "http://localhost:8004",  # Will be Cloud Run once deployed
 }
+ORCHESTRATOR_URL = os.environ.get("ORCHESTRATOR_URL", "http://localhost:8080")
+
+# In single-service mode, mount sub-apps and route all traffic via gateway
+if SERVICE_MODE == "single":
+    try:
+        from dashboard_api import app as dashboard_app
+        from intelligence_api import app as intelligence_app
+        from meta_service import app as meta_app
+        from scripts.orchestrator_service import app as orchestrator_app
+
+        # Mount sub applications under prefixes
+        app.mount("/dashboard", dashboard_app)
+        app.mount("/intelligence", intelligence_app)
+        app.mount("/meta", meta_app)
+        app.mount("/orchestrator", orchestrator_app)
+
+        # Point service URLs to mounted prefixes on this gateway
+        base = os.environ.get("GATEWAY_URL", "http://localhost:8000")
+        SERVICES = {
+            "dashboard": f"{base}/dashboard",
+            "intelligence": f"{base}/intelligence",
+            "meta": f"{base}/meta",
+            "mcp": f"{base}/mcp"  # placeholder
+        }
+        ORCHESTRATOR_URL = f"{base}/orchestrator"
+        logger.info("Single-service mode enabled: mounted dashboard, intelligence, meta, orchestrator")
+    except Exception as e:
+        logger.error(f"Failed to enable single-service mode: {e}")
+
+# ===== OPENAPI SCHEMA ROUTES =====
+@app.get("/openapi/combined.yaml")
+async def get_combined_openapi():
+    """Serve the combined OpenAPI schema for ChatGPT/Actions."""
+    try:
+        schema_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "openapi", "combined.yaml")
+        if not os.path.exists(schema_path):
+            return JSONResponse(status_code=404, content={"error": "combined.yaml not found"})
+        with open(schema_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        return PlainTextResponse(content=content, media_type="application/yaml")
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 # Status color coding thresholds
 def color_from_metrics(uptime: float, error_rate: float, latency_ms: float) -> str:
@@ -341,6 +384,34 @@ async def admin_doc_mode_set(payload: Dict[str, Any], x_passphrase: Optional[str
         raise
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@app.post("/mcp/execute")
+async def mcp_execute(payload: Dict[str, Any]):
+    """MCP-style execute endpoint, proxying to orchestrator /execute with provider-aware routing."""
+    command = payload.get("command")
+    data = payload.get("payload", {})
+    provider = payload.get("provider")
+    action = payload.get("action")
+    if not command:
+        raise HTTPException(status_code=400, detail="command required")
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                f"{ORCHESTRATOR_URL}/execute",
+                json={
+                    "command": command,
+                    "payload": data,
+                    "provider": provider,
+                    "action": action,
+                },
+            )
+            if resp.status_code >= 400:
+                return JSONResponse(status_code=resp.status_code, content={"error": resp.text})
+            ct = resp.headers.get("content-type", "")
+            return resp.json() if ct.startswith("application/json") else {"status": resp.status_code, "body": resp.text[:500]}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e), "note": "orchestrator unreachable"})
 
 @app.get("/admin/endpoints")
 async def admin_endpoints():

@@ -2,8 +2,8 @@
     "name": "infinity-dashboard",
     "displayName": "Infinity Dashboard",
     "description": "Full-screen dashboard shell for VS Code",
-    "version": "0.0.1",
     "publisher": "infinityx",
+    "version": "0.1.0",
     "engines": {
         "vscode": "^1.85.0"
     },
@@ -11,7 +11,9 @@
         "Other"
     ],
     "activationEvents": [
-        "onStartupFinished"
+        "onStartupFinished",
+        "onCommand:infinity-dashboard.open",
+        "onCommand:infinity-dashboard.toggle"
     ],
     "main": "./out/extension.js",
     "contributes": {
@@ -22,7 +24,7 @@
             },
             {
                 "command": "infinity-dashboard.toggle",
-                "title": "Toggle Dashboard Full Screen"
+                "title": "Toggle Zen Mode"
             }
         ],
         "configuration": {
@@ -31,7 +33,7 @@
                 "infinityDashboard.url": {
                     "type": "string",
                     "default": "http://localhost:8000/",
-                    "description": "Dashboard URL"
+                    "description": "Dashboard URL (e.g., Cloud Run URL)."
                 },
                 "infinityDashboard.autoOpen": {
                     "type": "boolean",
@@ -45,12 +47,13 @@
         "vscode:prepublish": "npm run compile",
         "compile": "tsc -p ./",
         "watch": "tsc -watch -p ./",
+        "build": "npm run compile",
         "package": "vsce package"
     },
     "devDependencies": {
         "@types/vscode": "^1.85.0",
-        "@types/node": "^18.x",
-        "typescript": "^5.3.3",
+        "@types/node": "^18.19.0",
+        "typescript": "^5.6.3",
         "@vscode/vsce": "^2.22.0"
     }
 }
