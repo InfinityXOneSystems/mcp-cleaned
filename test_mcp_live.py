@@ -407,34 +407,50 @@ class MCPLiveTester:
             "total_categories": len(self.results["categories_tested"]),
             "total_tools_tested": len(self.results["tools_tested"]),
             "total_successes": len(self.results["successes"]),
-            "total_failures":  with REAL MCP server communication"""
-        self.log("Starting Comprehensive A-Z Live Testing WITH REAL MCP PROTOCOL", "START")
-        self.log(f"Total Tools in System: 149", "INFO")
-        self.log("=" * 80, "INFO")
+            "total_failures": len(self.results["failures"]),
+            "total_skipped": len(self.results["skipped"]),
+        }
+        report_lines = [
+            "Comprehensive A-Z Live Testing Report",
+            "=" * 40,
+            f"Test Start: {self.results['test_start']}",
+            f"Test End: {self.results['test_end']}",
+            f"Total Categories Tested: {self.results['summary']['total_categories']}",
+            f"Total Tools Tested: {self.results['summary']['total_tools_tested']}",
+            f"Total Successes: {self.results['summary']['total_successes']}",
+            f"Total Failures: {self.results['summary']['total_failures']}",
+            f"Total Skipped: {self.results['summary']['total_skipped']}",
+            "=" * 40,
+        ]
         
-        # Start MCP server
-        if not await self.start_mcp_server():
-            self.log("Cannot proceed without MCP server", "ERROR")
-            return self.results
-        
-        try:
-            # Run all test categories
-            await self.test_vscode_tools()
-            await self.test_github_tools()
-            await self.test_hostinger_tools()
-            await self.test_orchestrator_tools()
-            await self.test_crawler_tools()
-            await self.test_docker_tools()
-            await self.test_google_tools()
-            await self.test_intelligence_tools()
-        finally:
-            # Always stop MCP server
-            await self.stop_mcp_server
+        for category in self.results["categories_tested"]:
+            report_lines.append(f"Category: {category}")
+            report_lines.append("-" * 30)
+            
+            # Successes
+            successes = [t for t in self.results["tools_tested"] if t in self.results["successes"]]
+            if successes:
+                report_lines.append("Successes:")
+                for tool in successes:
+                    report_lines.append(f"  - {tool}")
+            else:
+                report_lines.append("No successes")
+            
+            # Failures
+            failures = [f for f in self.results["failures"] if f["tool"] in self.results["tools_tested"]]
+            if failures:
+                report_lines.append("Failures:")
+                for failure in failures:
+                    report_lines.append(f"  - {failure['tool']}: {failure['error']}")
+            else:
+                report_lines.append("No failures")
+            
+            report_lines.append("=" * 40)
         
         # Save to file
-        report_file = f"test_results_live_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        with open(report_file, 'w') as f:
-            json.dump(self.results, f, indent=2)
+        report_file = f"test_results_live_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        with open(report_file, 'w', encoding='utf-8') as f:
+            f.write("\n".join(report_lines))
         
         self.log(f"Full report saved to: {report_file}", "REPORT")
         return report_file
