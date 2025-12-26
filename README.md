@@ -195,3 +195,18 @@ python test_omni_hub.py
 - GitHub token set (for GitHub tools)
 
 Both MCP servers are safe to run side-by-side (use different names in MCP clients).
+
+## Custom GPT Attachment
+
+ - The MCP HTTP Adapter exposes MCP tools over HTTP/OpenAPI for Custom GPT-style integrations.
+ - Adapter base path: `/mcp` (e.g. `http://<host>/mcp`).
+ - OpenAPI spec (attach-ready): `GET /mcp/openapi` or `GET /mcp/schema`.
+ - Discovery endpoints:
+   - `GET /mcp/health` — adapter health
+   - `GET /mcp/tools` — list available tools and metadata
+   - `POST /mcp/execute` — execute a tool (body: `{ "tool_name": "...", "arguments": {...} }`)
+   - `POST /mcp/execute/{tool_name}` — execute a specific tool by name
+ - Security: set `MCP_API_KEY` env var and provide `X-MCP-KEY` header. Default `SAFE_MODE=true` blocks unauthenticated calls.
+ - Approval flow: critical operations may return `{ "approval_required": true }` and persist a local memory entry under `data/` for manual approval.
+
+Deploy the adapter with `python -m uvicorn omni_gateway:app --host 0.0.0.0 --port $PORT` for Cloud Run compatibility. Ensure `SAFE_MODE` and `MCP_API_KEY` are set in the environment.

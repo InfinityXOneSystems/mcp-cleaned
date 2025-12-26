@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Authority Demo</title>
+  <style>body{font-family:Helvetica,Arial;background:#f7f7f9;padding:24px} .card{background:white;padding:18px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.08);max-width:720px;margin:16px auto} button{padding:10px 14px;border-radius:6px;border:none;background:#1f6feb;color:white}</style>
+  <script>
+    async function callArrival(){
+      const res = await fetch('/v1/intelligence/arrival',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});
+      const j = await res.json();
+      document.getElementById('arrival').innerText = j.insight + ' (confidence: ' + Math.round(j.confidence*100) + '%)';
+      speak(j.spoken);
+    }
+    async function callMirror(){
+      const url = document.getElementById('company').value || '';
+      const res = await fetch('/v1/intelligence/mirror-business',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
+      const j = await res.json();
+      document.getElementById('mirror').innerText = j.model + '\n' + j.bottleneck + '\nCost: $' + j.cost_of_inaction;
+      speak(j.spoken);
+    }
+    async function callPipeline(){
+      const res = await fetch('/v1/intelligence/pipeline-shadow',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});
+      const j = await res.json();
+      document.getElementById('pipeline').innerText = 'Lost estimate: $' + Math.round(j.lost_estimate) + '\nFix: ' + j.fix;
+      speak('Estimated loss ' + Math.round(j.lost_estimate) + ' dollars. ' + j.fix);
+    }
+    function speak(text){
+      if(!('speechSynthesis' in window)) return;
+      const u = new SpeechSynthesisUtterance(text);
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
+    }
+  </script>
+</head>
+<body>
+  <div class="card"><h2>Authority Demo</h2><p>Click start to run the 3-step demo.</p>
+    <button onclick="callArrival()">Start Arrival</button>
+    <div id="arrival" style="margin-top:12px;color:#111"></div>
+  </div>
+
+  <div class="card">
+    <h3>Mirror Business</h3>
+    <input id="company" placeholder="https://acme.example.com" style="width:70%;padding:8px;border:1px solid #ddd;border-radius:6px" />
+    <button onclick="callMirror()">Analyze</button>
+    <pre id="mirror" style="margin-top:12px"></pre>
+  </div>
+
+  <div class="card">
+    <h3>Pipeline Shadow</h3>
+    <button onclick="callPipeline()">Estimate Leakage</button>
+    <pre id="pipeline" style="margin-top:12px"></pre>
+  </div>
+</body>
+</html>

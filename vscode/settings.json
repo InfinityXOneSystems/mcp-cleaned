@@ -1,0 +1,7 @@
+{
+    "files.autoSave": "onFocusChange",
+    "editor.formatOnSave": true,
+    "python.pythonPath": "python",
+    "workbench.colorTheme": "InfinityX-BlackGlass",
+    "git.autofetch": true
+}

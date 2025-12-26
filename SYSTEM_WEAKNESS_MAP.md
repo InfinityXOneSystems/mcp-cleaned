@@ -1,0 +1,14 @@
+SYSTEM WEAKNESS MAP — FAANG-GRADE AUDIT
+
+- Orchestrator Authority: omni_gateway.py is canonical, but api_gateway.py is still invoked; direct python runs exit with code 1; app is constructible yet not served reliably. Serving requires ASGI (uvicorn). Ambiguous authority enables drift and operator confusion.
+- Endpoint Drift: MCP adapter works via /mcp/execute; observed requests to /mcp/executeMCPTool fail. Health endpoints return intermittently (non-deterministic). Base URL discipline is lax (localhost vs 127.0.0.1). These create governance bypass and demo instability.
+- Tool Registry Integrity: ~59 tools present. No enforced per-tool allowlist, sandbox, or blast-radius classification. Argument validation is heterogeneous. Write-capable tools exist without consistent dry-run fences. Registry hash/version not tracked; schema drift is likely.
+- Auth & Secrets: Header keys are optional in code paths; static demo keys exist; no rotation or vault integration. Repo contains credential artifacts. No mandatory environment guards. Cloud Run/IAM posture unclear; lack of host allowlist and HSTS.
+- Read-Only / Dry-Run: Not on by default. Demo mode is not immutable. Write operations can execute if misconfigured. No global kill switch to force read-only under incident.
+- Governance Bypass Vectors: Alternate endpoint names, mixed base URLs, unverified hostnames, and remote control server mappings present risk. Without strict routing truth and host allowlisting, unauthorized paths can sneak through.
+- Memory / Firestore: Requires GOOGLE_APPLICATION_CREDENTIALS; missing mandatory preflight. Retry/backoff not guaranteed. merge=True semantics not enforced globally. No dead-letter queue. Failure can silently drop memory or block agents.
+- Containers / Cloud Run: Dockerfile not verified with liveness/readiness probes. Resource limits and concurrency caps unspecified. Graceful shutdown absent. Port hardcoded; no dynamic binding. Workload Identity not guaranteed; secrets may be mounted ad hoc.
+- Port Contention / Local Ops: Frequent port 8000 conflicts; blunt process kills used. No preflight guard, no deterministic health contract. Exit code 1 occurs silently; no alerting or auto-degrade.
+- Demo vs Prod Boundary: Shared endpoints with missing environment boundary. SERVICE_MODE toggles are not enforced. Actions schema re-import risk is high; base URL drift breaks GPT integrations.
+- Single Points of Failure: Single gateway, single adapter, no HA, no canary, no fallback. Any adapter fault breaks the system.
+- Silent Failure Modes: Non-200s without structured error body; health probe timeouts; endpoint mismatches; no circuit breaker, no alerting. Failures do not page operators.

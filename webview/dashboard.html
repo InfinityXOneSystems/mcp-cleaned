@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Infinity X Intelligence — Dashboard</title>
+  <style>
+    body{margin:0;background:linear-gradient(180deg,#000814, #00122b);font-family:Inter,Arial;color:#e6f7ff}
+    .glass{backdrop-filter:blur(6px);background:rgba(12,13,20,0.45);border:1px solid rgba(255,255,255,0.04);box-shadow:0 4px 24px rgba(0,0,0,0.6);border-radius:12px;padding:16px}
+    .layout{display:grid;grid-template-columns:260px 1fr 320px;gap:16px;padding:24px}
+    .bottom{position:fixed;left:0;right:0;bottom:0;height:160px;padding:12px}
+    .neon{color:#00ffb3}
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <div class="glass">Agent Swarm Status<br><small>Agents: Scout | Market | Predictor | Guardian</small></div>
+    <div class="glass">Active Intelligence Feed<br><div id="feed"></div></div>
+    <div class="glass">Memory / Decisions<br><div id="mem"></div></div>
+  </div>
+  <div class="bottom glass">Execution Logs & Orchestrator</div>
+  <script>
+    // placeholder: dynamic updates via postMessage from extension
+  </script>
+</body>
+</html>

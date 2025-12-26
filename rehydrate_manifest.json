@@ -1,0 +1,119 @@
+{
+  "manifest_version": "1.0",
+  "generated_at": "2025-12-26T02:52:13.097979Z",
+  "project_id": "infinity-x-one-systems",
+  "region": "us-east1",
+  "artifact_registry": {
+    "repo": "mcp-east",
+    "path_example": "us-east1-docker.pkg.dev/infinity-x-one-systems/mcp-east/gateway:latest"
+  },
+  "systems_index": [
+    {
+      "name": "Omni Gateway",
+      "file": "omni_gateway.py",
+      "description": "FastAPI wrapper exposing MCP tools, cockpit UI, and Firestore-backed memory (PROTOCOL_110).",
+      "entrypoint": "uvicorn omni_gateway:app"
+    },
+    {
+      "name": "Cockpit UI",
+      "file": "cockpit.html",
+      "description": "Browser UI for intelligence cockpit served by Omni Gateway."
+    },
+    {
+      "name": "Background Build Runner",
+      "file": "background_build_runner.py",
+      "description": "Submits Cloud Build jobs asynchronously for iterative builds."
+    },
+    {
+      "name": "Inspect Firestore",
+      "file": "inspect_firestore.py",
+      "description": "Utility to list collections and confirm Firestore persistence."
+    },
+    {
+      "name": "CI/CD",
+      "file": "cloudbuild.yaml",
+      "description": "Cloud Build pipeline building image and deploying to Cloud Run in us-east1."
+    }
+  ],
+  "location_notes": "Primary cloud region: us-east1. Local workspace path: C:\\AI\\repos\\mcp",
+  "how_it_works": "Omni Gateway (FastAPI) exposes MCP tools and stores runtime memory in Firestore. On startup the gateway attempts to rehydrate protocol state into Firestore under collection `mcp_memory`.",
+  "vision": "Provide always-on orchestration and an intelligence cockpit that can rehydrate critical runtime memory on boot and enable governed autonomous operations.",
+  "roadmap": [
+    {
+      "phase": "stabilize",
+      "tasks": [
+        "credentials management",
+        "persistent memory validation",
+        "monitoring"
+      ]
+    },
+    {
+      "phase": "scale",
+      "tasks": [
+        "multi-region artifact registry",
+        "high-availability Cloud Run",
+        "automated failover"
+      ]
+    },
+    {
+      "phase": "automate",
+      "tasks": [
+        "agentic orchestrator",
+        "policy-based governance",
+        "self-healing workflows"
+      ]
+    }
+  ],
+  "memory_locations": {
+    "firestore": "project=infinity-x-one-systems collection=mcp_memory document=protocol_110",
+    "local_sqlite": "mcp_memory.db (used by worker processes if configured)"
+  },
+  "ai_stack": [
+    "MCP tool orchestration (mcp package)",
+    "OpenAI/ChatGPT integrations via MCP",
+    "Optional local models via transformers or ONNX depending on deployment"
+  ],
+  "tech_stack": [
+    "Python 3.12",
+    "FastAPI + Uvicorn",
+    "google-cloud-firestore",
+    "httpx / urllib",
+    "Cloud Build, Artifact Registry, Cloud Run"
+  ],
+  "tool_stack": [
+    "gcloud",
+    "docker",
+    "cloud-build-local",
+    "Artifact Registry",
+    "Secret Manager",
+    "Firestore"
+  ],
+  "attached_apps": [
+    {
+      "name": "Frontend Service",
+      "url": "https://gateway-896380409704.us-east1.run.app"
+    },
+    {
+      "name": "Cloud Run Gateway",
+      "url": "https://gateway-896380409704.us-east1.run.app"
+    },
+    {
+      "name": "MCP Server",
+      "file": "main_extended.py (optional on host)"
+    }
+  ],
+  "env_samples": {
+    "GOOGLE_APPLICATION_CREDENTIALS": "C:\\Users\\JARVIS\\AppData\\Local\\InfinityXOne\\CredentialManager\\workspace-sa.json",
+    "FIRESTORE_PROJECT": "infinity-x-one-systems",
+    "FIRESTORE_COLLECTION": "mcp_memory",
+    "FRONTEND_SERVICE_URL": "https://gateway-896380409704.us-east1.run.app"
+  },
+  "folder_paths": {
+    "workspace_root": "C:\\AI\\repos\\mcp",
+    "credential_manager": "C:\\Users\\JARVIS\\\\AppData\\\\Local\\\\InfinityXOne\\\\CredentialManager"
+  },
+  "code_type": "python (FastAPI, workers, scripts)",
+  "omni_gateway_description": "See omni_gateway.py \u2014 exposes cockpit UI, MCP tool endpoints, and persistent memory rehydrate logic (PROTOCOL_110).",
+  "manifest_notes": "This manifest is intended for rehydrate + operational onboarding. Do not store private keys here.",
+  "agentic_orchestrator_prompt": "SYSTEM: You are the Infinity X One Master Orchestrator. Your primary goal is to bring the system to a safe, operational state and maintain it. You have access to a catalog of tools (MCP tools), the Omni Gateway HTTP API, and a persistent memory store (Firestore).\n\nRules: \n- Always prefer non-destructive actions. If an action is non-destructive and safe, assume YES by default. If destructive, require explicit user confirmation.\n- All privileged actions must be logged and auditable. Do not print or exfiltrate secret values.\n- Respect governance checks provided by the MCP server; if a governance check blocks an action, escalate to the human operator.\n- Verify environment (credentials, Firestore writeability, service endpoints) before attempting persistence.\n\nStartup behavior: \n1) Ensure Application Default Credentials are present and valid.\n2) Rehydrate the `protocol_110` document under collection `mcp_memory`.\n3) Run health checks against the Cloud Run gateway and frontend.\n4) Update the launch checklist in Firestore with observed statuses.\n\nIf any step fails, provide a short remediation plan and do not attempt destructive remediation without human approval.\nWhen finished, summarize changes and the updated checklist, and await further instructions."
+}
