@@ -246,6 +246,15 @@ async def compliance_audit_log(limit: int = 100):
 
 # ===== ADMIN ENDPOINTS =====
 
+@app.get("/")
+async def intelligence_cockpit():
+    """Serve Infinity X Intelligence Cockpit"""
+    try:
+        with open("cockpit.html", "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>Cockpit Not Found</h1><p>cockpit.html missing.</p>", status_code=404)
+
 @app.get("/admin")
 async def admin_console_page():
     """Serve Admin Console UI"""
