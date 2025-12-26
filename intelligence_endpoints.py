@@ -1,3 +1,33 @@
+from fastapi import APIRouter, Request, BackgroundTasks
+from pydantic import BaseModel
+import asyncio
+import logging
+from pipelines.ingest import load_seeds, write_report
+from pipelines.run_loop import run_cycle
+
+router = APIRouter()
+logger = logging.getLogger('intelligence_endpoints')
+
+
+class IngestItem(BaseModel):
+    source: str
+    payload: dict
+
+
+@router.post('/ingest')
+async def ingest_item(item: IngestItem):
+    # Very small ingest: write to reports and return success
+    out = write_report('ingest_' + item.source.replace('/', '_'), {
+        'payload': item.payload
+    })
+    return {'success': True, 'report': out}
+
+
+@router.post('/run-daily')
+async def run_daily(background_tasks: BackgroundTasks):
+    # Schedule a single run cycle in background and return immediately
+    background_tasks.add_task(asyncio.create_task, run_cycle())
+    return {'success': True, 'message': 'Scheduled daily run cycle'}
 """
 Lightweight intelligence endpoints router.
 Provides /arrival, /mirror-business, and /pipeline-shadow with safe defaults.
@@ -274,5 +304,59 @@ async def orchestrator_approve(req: ApprovalRequest):
         }
         doc_ref.set(existing, merge=True)
         return { 'status':'ok','memory_id': req.memory_id }
+
+
+# --- Dashboard sample API ---
+@router.get('/api/dashboard/sample')
+async def dashboard_sample():
+    # Return a small mock dataset matching the Propixo-style dashboard
+    sample = {
+        'bank': {
+            'balance': 12500.75
+        },
+        'portfolio': {
+            'total_value': 41234.12,
+            'total_pnl': 1234.56,
+            'total_pnl_pct': 3.09,
+            'num_positions': 7,
+            'positions': [
+                {'asset': 'AAPL', 'direction': 'long', 'entry_price': 150.0, 'current_price': 162.5, 'quantity': 10, 'entry_value': 1500.0, 'current_value': 1625.0, 'pnl': 125.0, 'pnl_pct': 8.33},
+                {'asset': 'BTC', 'direction': 'long', 'entry_price': 30000.0, 'current_price': 34000.0, 'quantity': 0.25, 'entry_value': 7500.0, 'current_value': 8500.0, 'pnl': 1000.0, 'pnl_pct': 13.33},
+                {'asset': 'TSLA', 'direction': 'short', 'entry_price': 700.0, 'current_price': 680.0, 'quantity': 5, 'entry_value': 3500.0, 'current_value': 3400.0, 'pnl': 100.0, 'pnl_pct': 2.86}
+            ]
+        },
+        'revenue': {
+            'monthly': 87234,
+            'breakdown': {'rent_collected': 0.66, 'utilities': 0.1, 'maintenance': 0.08, 'other': 0.16}
+        }
+    }
+    return sample
+
+
+# --- Text-to-Speech endpoint (Google Cloud TTS if available) ---
+from fastapi.responses import JSONResponse, Response
+@router.post('/api/tts/synthesize')
+async def tts_synthesize(payload: dict):
+    """Request body: {"text": "...", "voice":"en-US-Wavenet-D"}
+    Returns: {"audio_content_b64": "..."} if TTS available, otherwise {"text":"..."}
+    """
+    text = payload.get('text', '')
+    voice = payload.get('voice', None)
+    if not text:
+        return JSONResponse({'error':'text required'}, status_code=400)
+
+    try:
+        from google.cloud import texttospeech
+        client = texttospeech.TextToSpeechClient()
+        synthesis_input = texttospeech.SynthesisInput(text=text)
+        voice_params = texttospeech.VoiceSelectionParams(language_code='en-US', name=voice or 'en-US-Wavenet-D')
+        audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3)
+        response = client.synthesize_speech(input=synthesis_input, voice=voice_params, audio_config=audio_config)
+        audio_content = response.audio_content
+        import base64
+        return {'audio_content_b64': base64.b64encode(audio_content).decode('ascii')}
+    except Exception as e:
+        # Fallback: return plaintext for client-side Web Speech API
+        return {'text': text, 'note': f'fallback: {str(e)}'}
     except Exception as e:
         return { 'status':'error','error': str(e) }

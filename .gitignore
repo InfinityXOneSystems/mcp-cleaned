@@ -28,29 +28,40 @@ Thumbs.db
 # Python
 __pycache__/
 *.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+/.venv
+*/.venv
+
+# Local env files
+.env
+.env.local
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+
+# Logs
+logs/
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Python build artifacts
 *$py.class
 *.so
 .Python
-env/
-venv/
 ENV/
 build/
-develop-eggs/
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
 
-# Database - too large for Git, recreate locally
+# Database - too large for Git
 mcp_memory.db
 mcp_memory.db-journal
 *.db
@@ -63,17 +74,9 @@ mcp_memory.db-journal
 *.swo
 *~
 
-# OS
-.DS_Store
-Thumbs.db
-
 # Logs
 *.log
 logs/
-
-# Environment
-.env
-.env.local
 
 # Credentials - NEVER commit
 credentials*.json
@@ -94,3 +97,6 @@ firebase-admin-sa.json
 # P1 Secrets Hygiene
 credentials-gcp-local.json
 secrets_infinityxone_credentials.json
+
+# Local secrets folder
+.secrets/

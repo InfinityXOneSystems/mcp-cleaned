@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Propixo Dashboard - MCP</title>
+  <style>
+    :root{--bg:#f5f7fb;--card:#fff;--muted:#6b7280;--accent:#06b6d4;--accent-2:#34d399}
+    body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial;margin:0;background:linear-gradient(180deg,#eef2ff 0%,#f8fafc 100%);color:#111}
+    .wrap{max-width:1200px;margin:28px auto;padding:20px}
+    .grid{display:grid;grid-template-columns:280px 1fr 360px;gap:18px}
+    .card{background:var(--card);border-radius:12px;padding:18px;box-shadow:0 6px 18px rgba(15,23,42,0.06)}
+    .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+    .title{font-weight:700;font-size:20px}
+    .balance{background:linear-gradient(90deg,var(--accent-2),#10b981);color:#021; padding:14px;border-radius:10px}
+    .balance h3{margin:0;font-size:14px;color:#062}
+    .balance p{margin:6px 0 0;font-weight:700;font-size:22px}
+    .small{font-size:13px;color:var(--muted)}
+    .revenue{display:flex;flex-direction:column;gap:8px}
+    .kpis{display:flex;gap:8px}
+    .kpi{flex:1;background:linear-gradient(180deg,#fff,#fbfdff);padding:12px;border-radius:8px;text-align:center}
+    .table{width:100%;border-collapse:collapse}
+    .table th{font-size:12px;text-align:left;color:var(--muted);padding:8px}
+    .table td{padding:8px;border-top:1px solid #eef2f6}
+    .positions{max-height:420px;overflow:auto}
+    @media (max-width: 1000px){.grid{grid-template-columns:1fr;}.wrap{padding:12px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div class="title">PROP I XO — Portfolio Command</div>
+      <div class="small">Dec 26, 2025</div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h4>Account</h4>
+        <div style="height:12px"></div>
+        <div class="balance" id="bankCard">
+          <h3>Available Balance</h3>
+          <p id="bankBalance">$0.00</p>
+        </div>
+
+        <div style="height:14px"></div>
+        <div class="small">Actions</div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button onclick="alert('Add funds (demo)')">Add Property</button>
+          <button onclick="alert('Collect rent (demo)')">Collect Rent</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div class="small">Portfolio Value</div>
+            <div style="font-weight:700;font-size:22px" id="totalValue">$0.00</div>
+          </div>
+          <div style="text-align:right">
+            <div class="small">Total P&L</div>
+            <div id="totalPnL" style="font-weight:700;color:#10b981">$0.00</div>
+          </div>
+        </div>
+
+        <div style="height:12px"></div>
+        <div class="kpis">
+          <div class="kpi">
+            <div class="small">Return %</div>
+            <div id="returnPct">0.00%</div>
+          </div>
+          <div class="kpi">
+            <div class="small">Open Positions</div>
+            <div id="positionCount">0</div>
+          </div>
+        </div>
+
+        <div style="height:12px"></div>
+        <h4>Positions</h4>
+        <div class="positions" id="positionsContainer">
+          <p class="small">Loading...</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h4>Monthly Revenue</h4>
+        <div style="height:8px"></div>
+        <div id="monthlyRevenue" class="revenue">
+          <div class="small">Total: <strong id="monthlyTotal">$0</strong></div>
+          <div class="small">Breakdown:</div>
+          <div id="revenueBreakdown" class="small"></div>
+        </div>
+        <div style="margin-top:12px">
+          <button id="playVoiceBtn">▶️ Play Voice Summary</button>
+          <span id="voiceNote" class="small" style="margin-left:8px;color:var(--muted)"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function fetchSample(){
+      try{
+        const resp = await fetch('/api/dashboard/sample');
+        if(!resp.ok) throw new Error('bad');
+        const j = await resp.json();
+        document.getElementById('bankBalance').textContent = formatMoney(j.bank.balance);
+        document.getElementById('totalValue').textContent = formatMoney(j.portfolio.total_value);
+        document.getElementById('totalPnL').textContent = (j.portfolio.total_pnl>=0?'+':'') + formatMoney(j.portfolio.total_pnl);
+        document.getElementById('returnPct').textContent = (j.portfolio.total_pnl_pct>=0?'+':'') + j.portfolio.total_pnl_pct.toFixed(2) + '%';
+        document.getElementById('positionCount').textContent = j.portfolio.num_positions;
+        document.getElementById('monthlyTotal').textContent = formatMoney(j.revenue.monthly);
+        const breakdown = j.revenue.breakdown;
+        document.getElementById('revenueBreakdown').innerHTML = Object.keys(breakdown).map(k => `${k}: ${(breakdown[k]*100).toFixed(0)}%`).join('<br>');
+
+        const container = document.getElementById('positionsContainer');
+        if(j.portfolio.positions.length===0){container.innerHTML='<div class="small">No positions</div>'; return}
+        let html = '<table class="table"><thead><tr><th>Asset</th><th>Dir</th><th>Entry</th><th>Price</th><th>Qty</th><th>P&L</th></tr></thead><tbody>';
+        j.portfolio.positions.forEach(p=>{
+          html += `<tr><td><strong>${p.asset}</strong></td><td>${p.direction}</td><td>${formatMoney(p.entry_price)}</td><td>${formatMoney(p.current_price)}</td><td>${p.quantity}</td><td>${p.pnl>=0?'+':''}${formatMoney(p.pnl)} (${p.pnl_pct>=0?'+':''}${p.pnl_pct.toFixed(2)}%)</td></tr>`;
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+      }catch(e){console.error(e);}
+    }
+    function formatMoney(n){return '$'+Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
+    fetchSample();
+    setInterval(fetchSample,10000);
+
+    // ===== Voice synthesis =====
+    document.getElementById('playVoiceBtn').addEventListener('click', async () => {
+      const noteEl = document.getElementById('voiceNote');
+      noteEl.textContent = 'Synthesizing...';
+      const summary = `Portfolio value ${document.getElementById('totalValue').textContent}. Total P and L ${document.getElementById('totalPnL').textContent}. Open positions ${document.getElementById('positionCount').textContent}.`;
+      try{
+        const res = await fetch('/api/tts/synthesize', {method:'POST',headers:{'Content-Type':'application/json'}, body: JSON.stringify({text: summary})});
+        const j = await res.json();
+        if(j.audio_content_b64){
+          const blob = base64ToBlob(j.audio_content_b64, 'audio/mpeg');
+          const url = URL.createObjectURL(blob);
+          const audio = new Audio(url);
+          audio.play();
+          noteEl.textContent = '';
+        } else if (j.text) {
+          // Web Speech fallback
+          noteEl.textContent = 'Using browser TTS (fallback)';
+          if ('speechSynthesis' in window){
+            const u = new SpeechSynthesisUtterance(j.text);
+            window.speechSynthesis.speak(u);
+          } else {
+            alert(j.text);
+          }
+        } else {
+          noteEl.textContent = 'TTS failed';
+        }
+      }catch(e){
+        console.error(e);
+        noteEl.textContent = 'Error synthesizing voice';
+      }
+    });
+
+    function base64ToBlob(b64, mime){
+      const bin = atob(b64);
+      const len = bin.length;
+      const arr = new Uint8Array(len);
+      for (let i=0;i<len;i++) arr[i]=bin.charCodeAt(i);
+      return new Blob([arr], {type: mime});
+    }
+  </script>
+</body>
+</html>

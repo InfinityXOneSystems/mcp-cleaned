@@ -12,6 +12,7 @@ import sys
 import json
 import asyncio
 import logging
+import time
 from typing import Optional, Dict, Any, List
 from google.cloud import firestore
 from google.api_core.exceptions import GoogleAPIError
@@ -115,16 +116,28 @@ def init_firestore():
             return None
         if FIRESTORE_PROJECT == "infinity-x-one-systems":
             logger.info("Using default FIRESTORE_PROJECT=%s", FIRESTORE_PROJECT)
+        # Diagnostic information: check GOOGLE_APPLICATION_CREDENTIALS
+        gac = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+        if gac:
+            try:
+                exists = os.path.exists(gac)
+            except Exception:
+                exists = False
+            logger.info("GOOGLE_APPLICATION_CREDENTIALS=%s (exists=%s)", gac if len(str(gac))<120 else gac[:120]+"...", exists)
+        else:
+            logger.info("GOOGLE_APPLICATION_CREDENTIALS not set; relying on platform credentials")
+
+        # Attempt to create Firestore client
         _firestore_client = firestore.Client(project=FIRESTORE_PROJECT)
         _firestore_available = True
         logger.info("Connected to Firestore project=%s", FIRESTORE_PROJECT)
         return _firestore_client
     except GoogleAPIError as e:
-        logger.error(f"Failed to initialize Firestore: {e}")
+        logger.exception(f"Failed to initialize Firestore (GoogleAPIError): {e}")
         _firestore_available = False
         return None
     except Exception as e:
-        logger.error(f"Unexpected Firestore init error: {e}")
+        logger.exception(f"Unexpected Firestore init error: {e}")
         _firestore_available = False
         return None
 
@@ -528,6 +541,61 @@ async def get_protocol():
         "protocol": PROTOCOL_110,
         "firestore": _firestore_available
     })
+
+
+@app.get("/api/firestore/diagnose")
+async def firestore_diagnose():
+    """Run a quick Firestore diagnostic: env, credential file check, and test read/write."""
+    report = {
+        "firestore_project": FIRESTORE_PROJECT,
+        "firestore_collection": FIRESTORE_COLLECTION,
+        "firestore_available": _firestore_available,
+        "google_app_creds": None,
+        "credential_file_exists": False,
+        "credential_file_sha256": None,
+        "client_init": None,
+        "test_write": None,
+        "errors": []
+    }
+
+    gac = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+    report["google_app_creds"] = gac
+    try:
+        if gac and os.path.exists(gac):
+            report["credential_file_exists"] = True
+            import hashlib
+            try:
+                with open(gac, "rb") as f:
+                    data = f.read()
+                report["credential_file_sha256"] = hashlib.sha256(data).hexdigest()
+            except Exception as e:
+                report["errors"].append(f"Failed to hash credential file: {e}")
+        else:
+            report["credential_file_exists"] = False
+    except Exception as e:
+        report["errors"].append(f"Credential file check error: {e}")
+
+    # Try to init client and perform a safe write-read-delete on a test doc
+    try:
+        client = init_firestore()
+        report["client_init"] = bool(client)
+        if client:
+            try:
+                test_doc_id = "diagnostic_test_doc"
+                doc_ref = client.collection(FIRESTORE_COLLECTION).document(test_doc_id)
+                test_payload = {"diagnostic": True, "ts": int(time.time())}
+                doc_ref.set(test_payload)
+                got = doc_ref.get()
+                report["test_write"] = got.to_dict()
+                # cleanup
+                doc_ref.delete()
+            except Exception as e:
+                report["errors"].append(f"Firestore test write/read/delete failed: {e}")
+    except Exception as e:
+        report["errors"].append(f"Firestore init in diagnose failed: {e}")
+
+    status_code = 200 if not report["errors"] else 500
+    return JSONResponse(status_code=status_code, content={"success": len(report["errors"])==0, "report": report})
 
 
 @app.post("/api/protocol/rehydrate")
