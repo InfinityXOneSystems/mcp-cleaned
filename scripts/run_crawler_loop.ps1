@@ -13,8 +13,8 @@ while ($true) {
     $timestamp = Get-Date -Format o
     Write-Host "[crawler-loop] Starting crawl at $timestamp"
     try {
-        # Start crawl as a child process and wait for it to finish (to capture errors)
-        $psi = Start-Process -FilePath $Python -ArgumentList 'scripts\run_crawler_demo.py','https://example.com','--pages','10','--depth','1' -NoNewWindow -Wait -PassThru -WorkingDirectory $RepoRoot -ErrorAction Stop
+        # Start crawl using the wrapper that ensures SCRAPER_ALLOWED_HOSTS is set
+        $psi = Start-Process -FilePath $Python -ArgumentList 'scripts\run_crawler_with_allowlist.py','https://example.com','--pages','10','--depth','1' -NoNewWindow -Wait -PassThru -WorkingDirectory $RepoRoot -ErrorAction Stop
         if ($psi.ExitCode -ne 0) {
             "$timestamp ERROR: crawler exited with code $($psi.ExitCode)" | Out-File -FilePath (Join-Path $ReportDir 'crawler_loop_error.txt') -Append -Encoding utf8
         }

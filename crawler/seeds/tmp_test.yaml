@@ -1,0 +1,10 @@
+﻿keywords:
+  - 'example'
+sources:
+  - url: 'https://example.com'
+    type: 'test'
+    frequency: '*/1 * * * *'
+    weight: 0.1
+crawl_defaults:
+  timeout_seconds: 30
+  retries: 1
