@@ -19,7 +19,8 @@ except Exception:
 # Fix Windows console encoding
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
-class MCPLiveTester:
+# Rename the class to start with 'Test' for pytest discovery
+class TestMCPLiveTester:
     def __init__(self):
         self.results = {
             "test_start": datetime.now().isoformat(),
@@ -478,7 +479,7 @@ class MCPLiveTester:
 
 async def main():
     """Main entry point"""
-    tester = MCPLiveTester()
+    tester = TestMCPLiveTester()
     results = await tester.run_all_tests()
     
     # Exit with appropriate code
