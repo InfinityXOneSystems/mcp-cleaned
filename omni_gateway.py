@@ -13,6 +13,8 @@ import json
 import asyncio
 import logging
 from typing import Optional, Dict, Any, List
+from google.cloud import firestore
+from google.api_core.exceptions import GoogleAPIError
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -52,6 +54,87 @@ FRONTEND_SERVICE_URL = os.environ.get(
     "FRONTEND_SERVICE_URL",
     "https://frontend-service-0a277877-896380409704.us-east1.run.app"
 )
+
+# Firestore configuration
+FIRESTORE_PROJECT = os.environ.get("FIRESTORE_PROJECT")
+FIRESTORE_COLLECTION = os.environ.get("FIRESTORE_COLLECTION", "mcp_memory")
+
+# The 110% Protocol (enterprise-grade, abbreviated)
+PROTOCOL_110 = {
+    "name": "110% Protocol",
+    "version": "1.0",
+    "description": "Enterprise-grade FAAN Launch & Rehydrate protocol. Must accept implied YES for safe defaults.",
+    "principles": [
+        "Always-on observability",
+        "Fail-safe defaults (assume yes for non-destructive ops)",
+        "Autonomous rehydrate on boot",
+        "Store critical runtime memory in Firestore",
+        "Governance-first execution",
+        "Full launch checklist verification"
+    ],
+    "checklist": [
+        {"id": "c1", "name": "Credentials rotated", "status": "pending"},
+        {"id": "c2", "name": "Artifact Registry present (us-east1)", "status": "pending"},
+        {"id": "c3", "name": "Cloud Run deployed", "status": "pending"},
+        {"id": "c4", "name": "Health endpoints responding", "status": "pending"},
+        {"id": "c5", "name": "Frontend <-> Backend routing", "status": "pending"},
+        {"id": "c6", "name": "Firestore memory writable", "status": "pending"},
+        {"id": "c7", "name": "Autonomous prompt library available", "status": "pending"}
+    ]
+}
+
+# Firestore client (lazy)
+_firestore_client = None
+_firestore_available = False
+
+def init_firestore():
+    global _firestore_client, _firestore_available
+    if _firestore_client:
+        return _firestore_client
+    try:
+        if not FIRESTORE_PROJECT:
+            logger.warning("FIRESTORE_PROJECT not set; Firestore disabled")
+            _firestore_available = False
+            return None
+        _firestore_client = firestore.Client(project=FIRESTORE_PROJECT)
+        _firestore_available = True
+        logger.info("Connected to Firestore project=%s", FIRESTORE_PROJECT)
+        return _firestore_client
+    except GoogleAPIError as e:
+        logger.error(f"Failed to initialize Firestore: {e}")
+        _firestore_available = False
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected Firestore init error: {e}")
+        _firestore_available = False
+        return None
+
+async def load_110_protocol():
+    """Write the 110% protocol into Firestore (rehydrate on boot)."""
+    client = init_firestore()
+    if not client:
+        logger.warning("Skipping protocol load; Firestore not available")
+        return False
+    try:
+        doc_ref = client.collection(FIRESTORE_COLLECTION).document("protocol_110")
+        doc_ref.set(PROTOCOL_110)
+        logger.info("110% Protocol written to Firestore/%s/protocol_110", FIRESTORE_COLLECTION)
+        return True
+    except Exception as e:
+        logger.error(f"Failed to write protocol to Firestore: {e}")
+        return False
+
+
+# Startup event: rehydrate protocol
+@app.on_event("startup")
+async def on_startup_rehydrate():
+    # Initialize Firestore and write protocol document (non-blocking)
+    try:
+        init_firestore()
+        # Fire-and-forget: ensure we don't block startup for long network ops
+        asyncio.create_task(load_110_protocol())
+    except Exception as e:
+        logger.error(f"Startup rehydrate error: {e}")
 
 # ===== COCKPIT UI =====
 @app.get("/", response_class=HTMLResponse)
@@ -302,6 +385,77 @@ async def frontend_api_proxy(path: str, request: Request):
 async def health_check():
     """Health check endpoint"""
     return JSONResponse(content={"status": "healthy", "service": "omni-gateway"})
+
+
+# ===== 110% Protocol & Launch Checklist Endpoints =====
+@app.get("/api/protocol")
+async def get_protocol():
+    """Return the in-memory 110% protocol and indicate Firestore availability"""
+    return JSONResponse(content={
+        "success": True,
+        "protocol": PROTOCOL_110,
+        "firestore": _firestore_available
+    })
+
+
+@app.post("/api/protocol/rehydrate")
+async def rehydrate_protocol():
+    """Force rehydrate/write protocol to Firestore now"""
+    ok = await load_110_protocol()
+    if ok:
+        return JSONResponse(content={"success": True, "message": "Protocol rehydrated to Firestore"})
+    else:
+        return JSONResponse(status_code=500, content={"success": False, "error": "Failed to rehydrate protocol"})
+
+
+@app.get("/api/checklist")
+async def get_checklist():
+    """Return the launch checklist (from Firestore if available, otherwise in-memory)"""
+    client = init_firestore()
+    if client:
+        try:
+            doc = client.collection(FIRESTORE_COLLECTION).document("protocol_110").get()
+            if doc.exists:
+                data = doc.to_dict()
+                checklist = data.get("checklist", PROTOCOL_110["checklist"])
+                return JSONResponse(content={"success": True, "checklist": checklist})
+        except Exception as e:
+            logger.error(f"Failed to read checklist from Firestore: {e}")
+
+    # Fallback to in-memory
+    return JSONResponse(content={"success": True, "checklist": PROTOCOL_110["checklist"]})
+
+
+class ChecklistUpdate(BaseModel):
+    id: str
+    status: str
+
+
+@app.post("/api/checklist/update")
+async def update_checklist(item: ChecklistUpdate):
+    """Update a checklist item status and persist to Firestore if available"""
+    # Update in-memory
+    found = False
+    for it in PROTOCOL_110["checklist"]:
+        if it["id"] == item.id:
+            it["status"] = item.status
+            found = True
+            break
+
+    if not found:
+        return JSONResponse(status_code=404, content={"success": False, "error": "Checklist item not found"})
+
+    client = init_firestore()
+    if client:
+        try:
+            doc_ref = client.collection(FIRESTORE_COLLECTION).document("protocol_110")
+            doc_ref.set(PROTOCOL_110, merge=True)
+            return JSONResponse(content={"success": True, "message": "Checklist updated and persisted"})
+        except Exception as e:
+            logger.error(f"Failed to persist checklist update: {e}")
+            return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+    return JSONResponse(content={"success": True, "message": "Checklist updated (in-memory only)"})
 
 if __name__ == "__main__":
     import uvicorn
