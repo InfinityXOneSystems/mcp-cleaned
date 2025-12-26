@@ -1,14 +1,30 @@
 steps:
   - name: 'gcr.io/cloud-builders/docker'
     id: build-gateway
-    args: ['build', '-t', '${_REGION}-docker.pkg.dev/${_PROJECT}/mcp/gateway:latest', '.']
+    args: 
+      - 'build'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/${_PROJECT}/mcp/gateway:latest'
+      - '.'
   - name: 'gcr.io/cloud-builders/docker'
     id: push-gateway
     args:
       - 'push'
-      - '${_REGION}-docker.pkg.dev/${_PROJECT}/mcp/gateway:latest'
+      - 'us-central1-docker.pkg.dev/${_PROJECT}/mcp/gateway:latest'
+  - name: 'gcr.io/cloud-builders/gke-deploy'
+    id: deploy-cloudrun
+    args:
+      - 'run'
+      - 'deploy'
+      - 'gateway'
+      - '--project=${_PROJECT}'
+      - '--region=us-central1'
+      - '--image=us-central1-docker.pkg.dev/${_PROJECT}/mcp/gateway:latest'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--port=8000'
+      - '--set-env-vars=SERVICE_MODE=single,DOC_EV_MODE=safe'
 substitutions:
-  _PROJECT: your-gcp-project
-  _REGION: us-central1
+  _PROJECT: infinity-x-one-systems
 options:
   logging: CLOUD_LOGGING_ONLY
