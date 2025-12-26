@@ -48,6 +48,12 @@ logs/
 .env
 .env.local
 
+# Credentials - NEVER commit
+credentials*.json
+*-credentials.json
+*.key
+service-account*.json
+
 # GitHub App Secrets - NEVER COMMIT
 .github-app-config.json
 .github-app-private-key.pem
