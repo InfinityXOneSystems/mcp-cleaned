@@ -98,5 +98,5 @@ firebase-admin-sa.json
 credentials-gcp-local.json
 secrets_infinityxone_credentials.json
 
-# Local secrets folder
-.secrets/
+# Ignore local secrets and service account JSONs
+secrets/

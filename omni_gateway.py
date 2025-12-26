@@ -14,12 +14,22 @@ import asyncio
 import logging
 import time
 from typing import Optional, Dict, Any, List
-from google.cloud import firestore
 from google.api_core.exceptions import GoogleAPIError
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from pathlib import Path
+
+from fastapi.staticfiles import StaticFiles
+
+# Optional Google client imports (fail gracefully if libs missing)
+try:
+    from google.cloud import secretmanager  # type: ignore
+    from google.cloud import firestore      # type: ignore
+    _HAS_GCP = True
+except Exception:
+    _HAS_GCP = False
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -105,41 +115,70 @@ PROTOCOL_110 = {
 _firestore_client = None
 _firestore_available = False
 
-def init_firestore():
-    global _firestore_client, _firestore_available
-    if _firestore_client:
-        return _firestore_client
+def _write_temp_sa_json(sa_bytes: bytes) -> str:
+    """Write service account JSON bytes to a secure temp file and return its path."""
+    fd, path = tempfile.mkstemp(prefix="gcp_sa_", suffix=".json")
     try:
-        if not FIRESTORE_PROJECT:
-            logger.warning("FIRESTORE_PROJECT not set; Firestore disabled")
-            _firestore_available = False
-            return None
-        if FIRESTORE_PROJECT == "infinity-x-one-systems":
-            logger.info("Using default FIRESTORE_PROJECT=%s", FIRESTORE_PROJECT)
-        # Diagnostic information: check GOOGLE_APPLICATION_CREDENTIALS
-        gac = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
-        if gac:
-            try:
-                exists = os.path.exists(gac)
-            except Exception:
-                exists = False
-            logger.info("GOOGLE_APPLICATION_CREDENTIALS=%s (exists=%s)", gac if len(str(gac))<120 else gac[:120]+"...", exists)
-        else:
-            logger.info("GOOGLE_APPLICATION_CREDENTIALS not set; relying on platform credentials")
+        os.write(fd, sa_bytes)
+    finally:
+        os.close(fd)
+    os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)  # 0o600
+    return path
 
-        # Attempt to create Firestore client
-        _firestore_client = firestore.Client(project=FIRESTORE_PROJECT)
-        _firestore_available = True
-        logger.info("Connected to Firestore project=%s", FIRESTORE_PROJECT)
-        return _firestore_client
-    except GoogleAPIError as e:
-        logger.exception(f"Failed to initialize Firestore (GoogleAPIError): {e}")
-        _firestore_available = False
+def ensure_google_application_credentials_from_secret():
+    """
+    If GOOGLE_APPLICATION_CREDENTIALS is unset and USE_GCP_SECRET_MANAGER=true,
+    fetch secret named by GCP_SECRET_NAME from Secret Manager and set env var.
+    Env:
+      USE_GCP_SECRET_MANAGER=true
+      GCP_SECRET_NAME=projects/<project>/secrets/<name>/versions/<version>
+    Returns path to written SA JSON or None.
+    """
+    if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
+        return os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
+
+    if os.environ.get("USE_GCP_SECRET_MANAGER", "false").lower() != "true":
         return None
+
+    secret_name = os.environ.get("GCP_SECRET_NAME")
+    if not secret_name:
+        raise RuntimeError("GCP_SECRET_NAME must be set when USE_GCP_SECRET_MANAGER=true")
+
+    if not _HAS_GCP:
+        raise RuntimeError("google-cloud-secretmanager library not available in environment")
+
+    client = secretmanager.SecretManagerServiceClient()
+    response = client.access_secret_version(request={"name": secret_name})
+    payload = response.payload.data  # bytes
+
+    # quick validation
+    try:
+        json.loads(payload.decode("utf-8"))
     except Exception as e:
-        logger.exception(f"Unexpected Firestore init error: {e}")
-        _firestore_available = False
-        return None
+        raise RuntimeError("Secret payload is not valid JSON service account content") from e
+
+    sa_path = _write_temp_sa_json(payload)
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = sa_path
+    return sa_path
+
+def init_firestore():
+    """
+    Initialize and return a Firestore client.
+    Attempts to load service account JSON from Secret Manager if requested
+    and GOOGLE_APPLICATION_CREDENTIALS not already set.
+    """
+    # Try to populate GOOGLE_APPLICATION_CREDENTIALS from Secret Manager if needed
+    try:
+        ensure_google_application_credentials_from_secret()
+    except Exception as e:
+        # non-fatal here; log and continue (applying ADC if available)
+        print(f"[omni_gateway] secret-manager warning: {e}")
+
+    if not _HAS_GCP:
+        raise RuntimeError("google-cloud-firestore not available; install google-cloud-firestore")
+
+    # Create and return Firestore client (uses ADC or the SA file we wrote)
+    return firestore.Client()
 
 async def load_110_protocol():
     """Write the 110% protocol into Firestore (rehydrate on boot)."""
@@ -524,6 +563,24 @@ try:
     logger.info("✓ LangChain integration mounted: /langchain/* endpoints")
 except Exception as e:
     logger.warning(f"⚠ Failed to mount LangChain integration: {e}")
+
+# add: mount static webview folder and include dashboard router if available
+BASE_DIR = Path(__file__).resolve().parent
+WEBVIEW_DIR = BASE_DIR / "webview"
+
+try:
+    # 'app' should be the FastAPI instance created earlier in this file
+    # If your app variable name differs, merge these two lines into your app init section.
+    from api_dashboard import router as dashboard_router  # ensure api_dashboard.py exists in repo
+
+    if WEBVIEW_DIR.is_dir():
+        app.mount("/webview", StaticFiles(directory=str(WEBVIEW_DIR)), name="webview")
+
+    # include the dashboard router to expose /api/dashboard/data
+    app.include_router(dashboard_router)
+except Exception as e:
+    # avoid breaking startup if dashboard module missing; log and continue
+    print(f"[omni_gateway] dashboard mount/include skipped: {e}")
 
 # ===== HEALTH CHECK =====
 @app.get("/health")

@@ -17,4 +17,6 @@ aiohttp
 aiodns
 firebase-admin
 python-dotenv
+opentelemetry-api
+opentelemetry-sdk
 
