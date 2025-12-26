@@ -1,0 +1,7 @@
+{
+    "demo_mode_required":  true,
+    "demo_mode_immutable":  true,
+    "read_only_default":  true,
+    "auth_required":  true,
+    "dry_run_forced":  true
+}

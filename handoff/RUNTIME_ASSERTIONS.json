@@ -1,0 +1,7 @@
+{
+    "uvicorn_only":  true,
+    "demo_immutable":  true,
+    "kill_switch_ready":  true,
+    "auth_mandatory":  true,
+    "health_deterministic":  true
+}
