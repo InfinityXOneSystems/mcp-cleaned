@@ -1,0 +1,77 @@
+{
+  "timestamp": "2025-12-26T01:59:20Z",
+  "target": "https://gateway-f42ylsp5qa-ue.a.run.app",
+  "summary": {
+    "total": 13,
+    "passed": 6,
+    "failed": 7,
+    "success_rate": "46.2%"
+  },
+  "results": [
+    {
+      "test": "Health Endpoint",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "test": "Cockpit UI Accessible",
+      "status": "ERROR",
+      "error": ""
+    },
+    {
+      "test": "Rate Limiting Headers",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "test": "MCP List Tools",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "test": "MCP Execute Safe Tool",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "test": "Protocol 110 Status",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "test": "Safe Mode Enforcement",
+      "status": "ERROR",
+      "error": ""
+    },
+    {
+      "test": "Credential Gateway Health",
+      "status": "ERROR",
+      "error": ""
+    },
+    {
+      "test": "Credential Gateway Auth",
+      "status": "ERROR",
+      "error": ""
+    },
+    {
+      "test": "Autonomy Health",
+      "status": "ERROR",
+      "error": ""
+    },
+    {
+      "test": "Autonomy Agents List",
+      "status": "ERROR",
+      "error": ""
+    },
+    {
+      "test": "Intelligence Sources",
+      "status": "ERROR",
+      "error": ""
+    },
+    {
+      "test": "Firestore Connectivity",
+      "status": "PASS",
+      "error": null
+    }
+  ]
+}

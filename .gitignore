@@ -63,3 +63,7 @@ github-app-private-key.pem
 # Firebase secrets (client/admin) - NEVER COMMIT
 firebase_config.json
 firebase-admin-sa.json
+
+# P1 Secrets Hygiene
+credentials-gcp-local.json
+secrets_infinityxone_credentials.json

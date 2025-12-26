@@ -1,0 +1,104 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://infinityx.one/schemas/agents/agent_runs.schema.json",
+    "title": "Agent Run",
+    "type": "object",
+    "additionalProperties": true,
+    "properties": {
+        "run_id": {
+            "type": "string"
+        },
+        "agent_id": {
+            "type": "string"
+        },
+        "role": {
+            "type": "string",
+            "enum": [
+                "scout",
+                "architect",
+                "executor",
+                "predictor",
+                "memory"
+            ]
+        },
+        "task_id": {
+            "type": "string"
+        },
+        "session_hash": {
+            "type": "string"
+        },
+        "status": {
+            "type": "string",
+            "enum": [
+                "started",
+                "progress",
+                "completed",
+                "error",
+                "timeout"
+            ]
+        },
+        "progress": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+        },
+        "events": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                    "ts": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "payload": {
+                        "type": "object"
+                    }
+                },
+                "required": [
+                    "ts",
+                    "type"
+                ]
+            }
+        },
+        "artifacts": {
+            "type": "array",
+            "items": {
+                "anyOf": [
+                    {
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    {
+                        "type": "object",
+                        "additionalProperties": true
+                    }
+                ]
+            }
+        },
+        "idempotency_key": {
+            "type": "string"
+        },
+        "started_at": {
+            "type": "string",
+            "format": "date-time"
+        },
+        "ended_at": {
+            "type": "string",
+            "format": "date-time"
+        }
+    },
+    "required": [
+        "run_id",
+        "agent_id",
+        "role",
+        "task_id",
+        "session_hash",
+        "status",
+        "started_at"
+    ]
+}
