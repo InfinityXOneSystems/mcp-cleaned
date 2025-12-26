@@ -4,26 +4,27 @@ steps:
     args: 
       - 'build'
       - '-t'
-      - 'us-central1-docker.pkg.dev/${_PROJECT}/mcp/gateway:latest'
+      - 'us-east1-docker.pkg.dev/${_PROJECT}/mcp-east/gateway:latest'
       - '.'
   - name: 'gcr.io/cloud-builders/docker'
     id: push-gateway
     args:
       - 'push'
-      - 'us-central1-docker.pkg.dev/${_PROJECT}/mcp/gateway:latest'
-  - name: 'gcr.io/cloud-builders/gke-deploy'
+      - 'us-east1-docker.pkg.dev/${_PROJECT}/mcp-east/gateway:latest'
+  - name: 'gcr.io/cloud-builders/gcloud'
     id: deploy-cloudrun
+    entrypoint: 'bash'
     args:
-      - 'run'
-      - 'deploy'
-      - 'gateway'
-      - '--project=${_PROJECT}'
-      - '--region=us-central1'
-      - '--image=us-central1-docker.pkg.dev/${_PROJECT}/mcp/gateway:latest'
-      - '--platform=managed'
-      - '--allow-unauthenticated'
-      - '--port=8000'
-      - '--set-env-vars=SERVICE_MODE=single,DOC_EV_MODE=safe'
+      - '-c'
+      - |
+        gcloud run deploy gateway \
+          --project=${_PROJECT} \
+          --region=us-east1 \
+          --image=us-east1-docker.pkg.dev/${_PROJECT}/mcp-east/gateway:latest \
+          --platform=managed \
+          --allow-unauthenticated \
+          --port=8000 \
+          --set-env-vars=SERVICE_MODE=single,DOC_EV_MODE=safe
 substitutions:
   _PROJECT: infinity-x-one-systems
 options:
