@@ -500,6 +500,14 @@ try:
 except Exception as e:
     logger.warning(f"⚠ Failed to mount autonomous orchestrator: {e}")
 
+# Mount LangChain integration (RAG + Memory Sync + Autonomous)
+try:
+    from langchain_integration import router as langchain_router
+    app.include_router(langchain_router)
+    logger.info("✓ LangChain integration mounted: /langchain/* endpoints")
+except Exception as e:
+    logger.warning(f"⚠ Failed to mount LangChain integration: {e}")
+
 # ===== HEALTH CHECK =====
 @app.get("/health")
 async def health_check():
