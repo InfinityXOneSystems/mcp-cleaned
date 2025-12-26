@@ -17,6 +17,21 @@ while ($true) {
         $psi = Start-Process -FilePath $Python -ArgumentList 'scripts\run_crawler_with_allowlist.py','https://example.com','--pages','10','--depth','1' -NoNewWindow -Wait -PassThru -WorkingDirectory $RepoRoot -ErrorAction Stop
         if ($psi.ExitCode -ne 0) {
             "$timestamp ERROR: crawler exited with code $($psi.ExitCode)" | Out-File -FilePath (Join-Path $ReportDir 'crawler_loop_error.txt') -Append -Encoding utf8
+        } else {
+            Write-Host "Crawl finished successfully, running normalization..."
+            # Run the ingest/normalizer script to normalize any new reports
+            $ingestArgs = @('scripts\ingest_normalize.py', '--reports-dir', 'data/reports', '--out-dir', 'data/normalized')
+            if ($env:WRITE_FIRESTORE -eq '1') { $ingestArgs += '--write-firestore' }
+            try {
+                $ingest = Start-Process -FilePath $Python -ArgumentList $ingestArgs -NoNewWindow -Wait -PassThru -WorkingDirectory $RepoRoot -ErrorAction Stop
+                if ($ingest.ExitCode -ne 0) {
+                    "$timestamp ERROR: ingest_normalize exited with code $($ingest.ExitCode)" | Out-File -FilePath (Join-Path $ReportDir 'crawler_loop_error.txt') -Append -Encoding utf8
+                } else {
+                    "$timestamp INFO: ingest_normalize completed" | Out-File -FilePath (Join-Path $ReportDir 'crawler_loop_error.txt') -Append -Encoding utf8
+                }
+            } catch {
+                "$timestamp EXCEPTION: ingest_normalize failed: $($_.Exception.Message)" | Out-File -FilePath (Join-Path $ReportDir 'crawler_loop_error.txt') -Append -Encoding utf8
+            }
         }
     } catch {
         $err = "${timestamp} EXCEPTION: $($_.Exception.Message)"

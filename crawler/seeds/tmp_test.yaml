@@ -1,4 +1,15 @@
 ﻿keywords:
+  - "example domain"
+  - "test crawl"
+sources:
+  - url: "https://example.com"
+    type: "static"
+    frequency: "*/1 * * * *"
+    weight: 0.1
+crawl_defaults:
+  timeout_seconds: 30
+  retries: 1
+keywords:
   - 'example'
 sources:
   - url: 'https://example.com'

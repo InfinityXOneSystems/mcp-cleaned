@@ -1,0 +1,22 @@
+{
+  "session_hash": "cycle_summary-1766770193",
+  "type": "crawl_report_normalized",
+  "source": "crawl_report",
+  "start_url": "",
+  "domain": null,
+  "created_at": "2025-12-26T17:29:53.321141Z",
+  "duration_sec": null,
+  "max_pages": null,
+  "max_depth": null,
+  "found": null,
+  "results_count": 0,
+  "entities": {
+    "phones": [],
+    "addresses": []
+  },
+  "raw": {
+    "ts": 1766770193,
+    "seed_count": 0,
+    "seeds": []
+  }
+}

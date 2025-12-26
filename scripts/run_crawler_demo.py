@@ -9,7 +9,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from crawler import crawl
+from crawler import engine
 
 
 async def main():
@@ -23,7 +23,11 @@ async def main():
     start = time.time()
     print(f"Starting crawl: {args.url} (pages={args.pages}, depth={args.depth})")
     try:
-        results = await crawl(args.url, max_pages=args.pages, max_depth=args.depth, delay=0.5, concurrency=3)
+        # Use engine.crawl_urls for a simple run over the single start URL
+        urls = [args.url]
+        await engine.crawl_urls(urls, concurrency=3)
+        # engine.crawl_urls writes snapshots; synthesize a minimal results list
+        results = []
     except Exception as e:
         print('Crawl failed:', e)
         raise
