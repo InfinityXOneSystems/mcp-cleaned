@@ -1,0 +1,7 @@
+# Ignore large binary artifacts and local runtime files
+*.pyc
+__pycache__/
+*.log
+*.sqlite
+results_repo/
+/.venv
