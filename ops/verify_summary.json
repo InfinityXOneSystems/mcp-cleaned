@@ -1,0 +1,13 @@
+﻿{
+    "flagged":  {
+                    "secrets/infinity-x-one-systems-sa.json":  [
+                                                                   "4a24348410a8243ff63f5e3bf1da56ea91c95e18",
+                                                                   "e2be8bbb08349822a44ffa1ffc30c96ba3da0cfb"
+                                                               ],
+                    ".secrets/infinity-x-one-systems-sa.json":  "bf42c51a0bf7c22a843b13c545a5f9c7fe46c2f3"
+                },
+    "localRepository":  "C:\\AI\\repos\\mcp",
+    "localHead":  "480ef4573760a2758971b9859d2bb1d63396f438",
+    "remoteRef":  "714102267351f49a5e517d3caafafcc7cef58d41\trefs/heads/main",
+    "recent":  "480ef45 data\n9acd07a sync\n2fa595b crawl\nbf42c51 fcommit\n192e83f chore: add opentelemetry otlp exporter to requirements\nb89d27a chore: add opentelemetry dependencies to fix Cloud Run startup\n4a24348 chore: ignore secrets/ and remove service account JSON from index\ne2be8bb update\n7141022 fix\n7cc2277 heal"
+}

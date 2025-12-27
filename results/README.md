@@ -50,3 +50,29 @@ If you want to mirror local credential artifacts into your credential repo and G
 	The `allowlist.txt` is a newline-separated list of regex patterns; matches will be redacted.
 
 Security note: Keep secrets out of public repos. Review and use encryption (`-EncryptWithGPG`) and commit policies before pushing secrets to any remote.
+
+## If a git push is blocked by GitHub Push Protection
+
+If you see an error like "Push cannot contain secrets" (GH013), it means GitHub's secret scanning blocked your push because one or more commits contain secrets. Typical remediation steps:
+
+- Identify offending commits and file paths (GitHub error will list them). Example paths: `.secrets/infinity-x-one-systems-sa.json`, `secrets/infinity-x-one-systems-sa.json`.
+- Do NOT force-push until you understand impact. Recommended steps:
+	1. Backup your repo: `git clone --mirror <repo> backup-repo`
+	2. Use `git-filter-repo` to remove the secret files from history (see `ops/remove_git_secrets.ps1`).
+	3. Rotate any exposed credentials immediately (create new service accounts, revoke keys).
+	4. After rewrite, force-push (`git push --force`) and notify collaborators to re-clone.
+	5. Optionally, follow GitHub's unblock flow if the secret is intentionally allowed (see GitHub UI link in the push error).
+
+The repository contains `ops/remove_git_secrets.ps1` to help with history rewriting (requires `git-filter-repo`). Use with caution.
+
+## Cleanup helper (recommended)
+
+To perform the removal of flagged secret files and run verification in one concise step, run the wrapper script locally:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\ops\run_cleanup_and_verify.ps1
+```
+
+This avoids long inline `-Command` invocations and prints clean, labeled output.
+
+

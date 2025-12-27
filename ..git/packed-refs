@@ -1,0 +1,11 @@
+# pack-refs with: peeled fully-peeled sorted 
+c6c0006b1384852589bd0d8b8df916959f2661e5 refs/heads/backup-before-restore-c6c0006
+074f3ef44b94f404a9c188534e2fc4eb434e5d95 refs/heads/backup-local-074f3ef
+5cd337f36f716e719d995d0f3cb86db23327b064 refs/heads/backup-local-5cd337f
+480ef4573760a2758971b9859d2bb1d63396f438 refs/heads/main
+f08b5346634d2946c63da8f54264a335e3600e6d refs/heads/wip-backup
+1073b3d5318b23e79e4dbb72a29b3f20f0b79672 refs/original/refs/heads/main
+714102267351f49a5e517d3caafafcc7cef58d41 refs/remotes/origin/HEAD
+c570f65498c3269385d9d4ebde831ed469220190 refs/remotes/origin/auto/submodule-heal-20251223T210511Z
+c79c7dcf530db5517c63c3ea1cf91187e5b68b22 refs/remotes/origin/doc-evolution/auto-sync-20251224
+714102267351f49a5e517d3caafafcc7cef58d41 refs/remotes/origin/main

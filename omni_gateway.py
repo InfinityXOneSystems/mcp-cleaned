@@ -22,6 +22,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from pathlib import Path
 
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import PlainTextResponse
 
 # Optional Google client imports (fail gracefully if libs missing)
 try:
@@ -33,6 +34,19 @@ except Exception:
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Initialize OpenTelemetry tracing if OTLP endpoint provided
+try:
+    otlp_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
+    if otlp_endpoint:
+        provider = TracerProvider()
+        exporter = OTLPSpanExporter(endpoint=otlp_endpoint)
+        span_processor = BatchSpanProcessor(exporter)
+        provider.add_span_processor(span_processor)
+        trace.set_tracer_provider(provider)
+        logger.info("OpenTelemetry initialized with OTLP endpoint %s", otlp_endpoint)
+except Exception:
+    logger.debug("OpenTelemetry initialization skipped or failed")
 
 # Initialize gateway environment early (centralized env loader)
 try:
@@ -206,6 +220,37 @@ async def on_startup_rehydrate():
         asyncio.create_task(load_110_protocol())
     except Exception as e:
         logger.error(f"Startup rehydrate error: {e}")
+
+
+# Initialize default agents router (vision_cortex integration)
+try:
+    from vision_cortex.integration.agent_integration import init_agents
+    app.state.agent_router = init_agents()
+    logger.info("Agent router initialized and attached to app.state.agent_router")
+except Exception as e:
+    logger.warning(f"Failed to initialize default agent router: {e}")
+
+# Initialize Hybrid Orchestrator (router + factory)
+try:
+    from vision_cortex.integration.hybrid_orchestrator import HybridOrchestrator
+    app.state.hybrid_orch = HybridOrchestrator(use_celery=False)
+    logger.info("HybridOrchestrator attached to app.state.hybrid_orch")
+except Exception as e:
+    logger.warning(f"Failed to initialize HybridOrchestrator: {e}")
+
+# Metrics endpoint (Prometheus) - optional
+try:
+    from vision_cortex.instrumentation.observability import PROM_REGISTRY
+    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+
+    @app.get('/metrics')
+    async def metrics_endpoint():
+        if not PROM_REGISTRY:
+            return PlainTextResponse('')
+        data = generate_latest(PROM_REGISTRY)
+        return PlainTextResponse(content=data, media_type=CONTENT_TYPE_LATEST)
+except Exception:
+    logger.debug('Prometheus client not available; /metrics endpoint disabled')
 
 # ===== COCKPIT UI =====
 @app.get("/", response_class=HTMLResponse)
@@ -407,7 +452,8 @@ async def get_system_status():
                 "autonomous_prompts": "loaded",
                 "cli_integration": "enabled"
             },
-            "governance": "enforced"
+            "governance": "enforced",
+            "agents_initialized": bool(getattr(app.state, "agent_router", None))
         })
     except Exception as e:
         logger.error(f"Status check failed: {e}")
@@ -451,6 +497,118 @@ async def frontend_api_proxy(path: str, request: Request):
             content={"error": f"Frontend service error: {str(e)}"}
         )
 
+    @app.post("/api/chat")
+    async def chat_dispatch(request: Request):
+        """Minimal chat endpoint that dispatches to premade agents by intent.
+
+        Expected JSON body:
+          { "intent": "discover", "session_id": "s1", "data": {...} }
+        """
+        try:
+            body = await request.json()
+            intent = body.get("intent")
+            if not intent:
+                return JSONResponse(status_code=400, content={"success": False, "error": "Missing 'intent' in request body"})
+
+            session_id = body.get("session_id") or str(int(time.time() * 1000))
+            ctx = AgentContext(session_id=session_id, task_id=f"chat_{session_id}", governance_level=body.get("governance", "LOW"))
+
+            router = getattr(app.state, "agent_router", None)
+            if not router:
+                return JSONResponse(status_code=503, content={"success": False, "error": "Agent router not initialized"})
+
+            payload = {"context": ctx, "data": body.get("data", {})}
+
+            # dispatch may be sync or async depending on agent implementations
+            result = router.dispatch(intent, payload)
+
+            return JSONResponse(content={"success": True, "intent": intent, "result": result})
+
+        except Exception as e:
+            logger.exception("Chat dispatch failed")
+            return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
+    @app.post("/api/agents/enqueue")
+    async def enqueue_agent_task(request: Request):
+        """Enqueue a long-running agent task via the HybridOrchestrator.
+
+        Body JSON: { "role": "visionary", "objective": "Analyze X", "context": { ... } }
+        """
+        try:
+            body = await request.json()
+            role = body.get("role")
+            objective = body.get("objective")
+            context = body.get("context")
+            if not role or not objective:
+                return JSONResponse(status_code=400, content={"success": False, "error": "Missing role or objective"})
+
+            orch = getattr(app.state, "hybrid_orch", None)
+            if not orch:
+                return JSONResponse(status_code=503, content={"success": False, "error": "HybridOrchestrator not available"})
+
+            # Governance check for high-sensitivity operations
+            gov = check_governance(role)
+            if not gov.get("allowed", True):
+                return JSONResponse(status_code=403, content={"success": False, "error": "Operation blocked by governance", "governance": gov})
+
+            # API key simple auth for enqueueing (for higher trust operations)
+            required_key = os.environ.get("ADMIN_API_KEY")
+            if required_key:
+                provided = request.headers.get("X-API-KEY")
+                if provided != required_key:
+                    # allow JWT bearer as alternative
+                    auth = request.headers.get("Authorization", "")
+                    token = None
+                    if auth.lower().startswith("bearer "):
+                        token = auth.split(" ", 1)[1].strip()
+                    if token:
+                        try:
+                            from vision_cortex.auth.jwt_auth import verify_jwt
+                            payload = verify_jwt(token)
+                            if not payload:
+                                return JSONResponse(status_code=401, content={"success": False, "error": "Invalid JWT token"})
+                        except Exception:
+                            return JSONResponse(status_code=401, content={"success": False, "error": "Invalid JWT token"})
+                    else:
+                        return JSONResponse(status_code=401, content={"success": False, "error": "Invalid API key"})
+
+            # enqueue (runs in-process unless USE_CELERY=true)
+            result = await orch.enqueue_long(role, objective, context)
+            return JSONResponse(content={"success": True, "task": result})
+        except Exception as e:
+            logger.exception("Enqueue failed")
+            return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
+    @app.get('/api/agents/status/{task_id}')
+    async def get_agent_task_status(task_id: str):
+        """Return status for in-process or Celery task.
+
+        - For in-process tasks we read the inproc store.
+        - For Celery tasks users can query Celery backend directly (not implemented here).
+        """
+        try:
+            from vision_cortex.instrumentation.observability import get_inproc_task
+
+            entry = get_inproc_task(task_id)
+            if entry:
+                return JSONResponse(content={"success": True, "task": entry})
+            # Celery lookup can be added here if needed
+            # If Celery is used, try to read backend
+            try:
+                from vision_cortex.integration.celery_app import celery_app
+                async_result = celery_app.AsyncResult(task_id)
+                if async_result:
+                    state = async_result.state
+                    info = async_result.result
+                    return JSONResponse(content={"success": True, "task": {"celery_state": state, "result": info}})
+            except Exception:
+                pass
+            return JSONResponse(status_code=404, content={"success": False, "error": "task not found"})
+        except Exception as e:
+            logger.exception('Task status lookup failed')
+            return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
 
 # Mount MCP HTTP Adapter (OpenAPI/Custom GPT compatible)
 try:
