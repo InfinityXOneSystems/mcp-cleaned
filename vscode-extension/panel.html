@@ -1,0 +1,72 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MCP Headless Agents</title>
+    <style>
+      body { font-family: Arial, sans-serif; padding: 12px; }
+      button { margin: 6px 0; }
+      .agent { border: 1px solid #ddd; padding: 8px; margin: 6px 0; }
+      .result { white-space: pre-wrap; background: #f7f7f7; padding: 8px; }
+    </style>
+  </head>
+  <body>
+    <h2>MCP Headless Agents</h2>
+    <div>
+      <button id="refresh">Refresh Team</button>
+    </div>
+    <div id="team"></div>
+
+    <script>
+      const vscode = acquireVsCodeApi ? acquireVsCodeApi() : null;
+
+      document.getElementById('refresh').addEventListener('click', () => {
+        if (vscode) vscode.postMessage({ command: 'fetchTeam' });
+      });
+
+      function renderTeam(data) {
+        const teamDiv = document.getElementById('team');
+        teamDiv.innerHTML = '';
+        if (!data || !data.team) {
+          teamDiv.innerText = 'No team data';
+          return;
+        }
+        data.team.forEach(a => {
+          const el = document.createElement('div');
+          el.className = 'agent';
+          el.innerHTML = `<strong>${a.name}</strong> - ${a.description}<br/>Capabilities: ${a.capabilities.join(', ')}<br/>`;
+          const input = document.createElement('input');
+          input.placeholder = 'https://...';
+          input.style.width = '60%';
+          const btn = document.createElement('button');
+          btn.innerText = 'Run';
+          btn.addEventListener('click', () => {
+            const payload = { agent_name: a.name, url: input.value, render: a.capabilities.includes('render') };
+            if (vscode) vscode.postMessage({ command: 'runAgent', payload });
+          });
+          el.appendChild(input);
+          el.appendChild(btn);
+          const result = document.createElement('div');
+          result.className = 'result';
+          el.appendChild(result);
+          teamDiv.appendChild(el);
+        });
+      }
+
+      window.addEventListener('message', event => {
+        const msg = event.data;
+        if (msg.command === 'team') renderTeam(msg.payload);
+        if (msg.command === 'runResult') {
+          alert(JSON.stringify(msg.payload, null, 2));
+        }
+        if (msg.command === 'error') {
+          alert('Error: ' + msg.payload);
+        }
+      });
+
+      // initial fetch
+      if (vscode) vscode.postMessage({ command: 'fetchTeam' });
+    </script>
+  </body>
+</html>

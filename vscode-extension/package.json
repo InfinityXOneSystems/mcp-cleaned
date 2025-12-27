@@ -1,0 +1,32 @@
+{
+  "name": "mcp-headless-panel",
+  "displayName": "MCP Headless Agents Panel",
+  "description": "Open a panel to list and invoke MCP headless agents from VS Code",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "publisher": "infinityx",
+  "main": "extension.js",
+  "activationEvents": [
+    "onCommand:mcp.headless.open"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "mcp.headless.open",
+        "title": "MCP: Open Headless Agents Panel"
+      }
+    ],
+    "configuration": {
+      "title": "MCP Headless Agents",
+      "properties": {
+        "mcp.gatewayUrl": {
+          "type": "string",
+          "default": "http://localhost:8000",
+          "description": "Base URL for the Omni Gateway (e.g. http://localhost:8000)"
+        }
+      }
+    }
+  }
+}

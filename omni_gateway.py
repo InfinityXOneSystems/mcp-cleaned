@@ -230,6 +230,14 @@ try:
 except Exception as e:
     logger.warning(f"Failed to initialize default agent router: {e}")
 
+# Initialize headless team registry (lightweight on-demand agents)
+try:
+    from vision_cortex.integration.headless_team import init_headless_team
+    app.state.headless_team = init_headless_team()
+    logger.info("Headless team initialized and attached to app.state.headless_team")
+except Exception as e:
+    logger.warning(f"Failed to initialize headless team: {e}")
+
 # Initialize Hybrid Orchestrator (router + factory)
 try:
     from vision_cortex.integration.hybrid_orchestrator import HybridOrchestrator
@@ -578,6 +586,75 @@ async def frontend_api_proxy(path: str, request: Request):
             return JSONResponse(content={"success": True, "task": result})
         except Exception as e:
             logger.exception("Enqueue failed")
+            return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
+    @app.get('/api/agents/headless_team')
+    async def list_headless_team():
+        """List available headless agents and their capabilities"""
+        try:
+            team = getattr(app.state, "headless_team", [])
+            data = [t.__dict__ for t in team]
+            return JSONResponse(content={"success": True, "team": data})
+        except Exception as e:
+            logger.exception('List headless team failed')
+            return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
+    class HeadlessRequest(BaseModel):
+        agent_name: str
+        url: str
+        render: Optional[bool] = False
+        timeout: Optional[int] = 15
+        no_robots: Optional[bool] = False
+        enqueue: Optional[bool] = False
+
+
+    @app.post('/api/agents/headless_team/execute')
+    async def execute_headless_agent(req: HeadlessRequest, request: Request):
+        """Execute a headless agent synchronously or enqueue via HybridOrchestrator"""
+        try:
+            # validate agent exists
+            team = getattr(app.state, "headless_team", [])
+            names = [t.name for t in team]
+            if req.agent_name not in names:
+                return JSONResponse(status_code=404, content={"success": False, "error": "agent not found"})
+
+            # Build payload and context
+            ctx = AgentContext(session_id=str(int(time.time() * 1000)), task_id=f"headless_{req.agent_name}", governance_level="LOW")
+            # set dev_ok tag if caller provided header X-DEV-OK or env var
+            dev_ok = request.headers.get("X-DEV-OK", "").lower() in ("1", "true", "yes") or os.environ.get("ALLOW_NO_ROBOTS", "") == "1"
+            ctx.tags["dev_ok"] = dev_ok
+
+            payload = {"url": req.url, "timeout": req.timeout, "no_robots": req.no_robots}
+
+            # If enqueue requested, use HybridOrchestrator
+            if req.enqueue:
+                orch = getattr(app.state, "hybrid_orch", None)
+                if not orch:
+                    return JSONResponse(status_code=503, content={"success": False, "error": "HybridOrchestrator not available"})
+                result = await orch.enqueue_long("headless", f"fetch {req.url}", {"agent_name": req.agent_name, "payload": payload, "context": ctx.__dict__})
+                return JSONResponse(content={"success": True, "task": result})
+
+            # Synchronous path: instantiate agent and run
+            try:
+                from vision_cortex.agents.headless_crawler import HeadlessCrawlerAgent
+                # create minimal bus mock
+                class _Bus:
+                    def publish(self, topic, payload):
+                        pass
+                    def subscribe(self, topic, handler):
+                        pass
+
+                agent = HeadlessCrawlerAgent(name=req.agent_name, role="headless", bus=_Bus())
+                out = agent.run_task(ctx, payload)
+                return JSONResponse(content={"success": True, "result": out})
+            except Exception as e:
+                logger.exception('Headless agent run failed')
+                return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+        except Exception as e:
+            logger.exception('Execute headless agent failed')
             return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
 
 
