@@ -1,13 +1,13 @@
 """Schemas for Vision Cortex."""
 
 from vision_cortex.schemas.contracts import (
-    Message,
-    DebateTurn,
-    DebateResult,
     ConfidenceSignal,
+    DebateResult,
+    DebateTurn,
+    Message,
     Observation,
-    Prediction,
     PlanStep,
+    Prediction,
     PrioritizedAction,
 )
 

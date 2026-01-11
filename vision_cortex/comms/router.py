@@ -1,8 +1,9 @@
 """Smart Router for intent → agent mapping with governance awareness."""
+
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from vision_cortex.validators.safety import enforce_governance
 
@@ -26,10 +27,17 @@ class SmartRouter:
         role = self._intent_map.get(intent, intent)
         agent = self._agents.get(role)
         if not agent:
-            raise ValueError(f"No agent registered for role '{role}' (intent '{intent}')")
+            raise ValueError(
+                f"No agent registered for role '{role}' (intent '{intent}')"
+            )
         ctx = payload.get("context")
         if not ctx:
             raise ValueError("Context is required in payload for dispatch")
         ctx.governance_level = enforce_governance(ctx.governance_level)
-        self._logger.info("Dispatching intent=%s to role=%s governance=%s", intent, role, ctx.governance_level)
+        self._logger.info(
+            "Dispatching intent=%s to role=%s governance=%s",
+            intent,
+            role,
+            ctx.governance_level,
+        )
         return agent.run_task(ctx, payload.get("data", {}))

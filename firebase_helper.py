@@ -6,15 +6,15 @@ Firebase Integration Helper (Modular & Safe)
 """
 
 from __future__ import annotations
+
 import json
-import os
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 # Optional imports for admin SDK
 try:
     import firebase_admin
-    from firebase_admin import credentials, firestore, auth, storage
+    from firebase_admin import auth, credentials, firestore, storage
 except Exception:
     firebase_admin = None
     credentials = None
@@ -22,42 +22,42 @@ except Exception:
     auth = None
     storage = None
 
-CRED_DIR = Path.home() / 'AppData/Local/InfinityXOne/CredentialManager'
-LOCAL_CONFIG_PATH = CRED_DIR / 'firebase-config.json'
-LOCAL_SA_PATH = CRED_DIR / 'firebase-admin-sa.json'
+CRED_DIR = Path.home() / "AppData/Local/InfinityXOne/CredentialManager"
+LOCAL_CONFIG_PATH = CRED_DIR / "firebase-config.json"
+LOCAL_SA_PATH = CRED_DIR / "firebase-admin-sa.json"
 
 
 def validate_config(config: Dict[str, Any]) -> Dict[str, Any]:
     """Validate the provided Firebase client config (not admin SA).
     Returns a report dict with fields present/missing.
     """
-    report = { 'valid': True, 'issues': [] }
+    report = {"valid": True, "issues": []}
     # Required top-level keys
-    required_top = ['project_info', 'client', 'configuration_version']
+    required_top = ["project_info", "client", "configuration_version"]
     for key in required_top:
         if key not in config:
-            report['valid'] = False
-            report['issues'].append(f'missing key: {key}')
+            report["valid"] = False
+            report["issues"].append(f"missing key: {key}")
     # project_info
-    pi = config.get('project_info', {})
-    for k in ['project_number', 'project_id']:
+    pi = config.get("project_info", {})
+    for k in ["project_number", "project_id"]:
         if k not in pi:
-            report['valid'] = False
-            report['issues'].append(f'missing project_info.{k}')
+            report["valid"] = False
+            report["issues"].append(f"missing project_info.{k}")
     # client/api_key current_key
     try:
-        api_key = config['client'][0]['api_key'][0]['current_key']
-        if not (isinstance(api_key, str) and api_key.startswith('AIza')):
-            report['issues'].append('api_key.current_key format unexpected')
+        api_key = config["client"][0]["api_key"][0]["current_key"]
+        if not (isinstance(api_key, str) and api_key.startswith("AIza")):
+            report["issues"].append("api_key.current_key format unexpected")
     except Exception:
-        report['valid'] = False
-        report['issues'].append('missing client[0].api_key[0].current_key')
+        report["valid"] = False
+        report["issues"].append("missing client[0].api_key[0].current_key")
     return report
 
 
 def save_config_locally(config: Dict[str, Any]) -> str:
     CRED_DIR.mkdir(parents=True, exist_ok=True)
-    with open(LOCAL_CONFIG_PATH, 'w', encoding='utf-8') as f:
+    with open(LOCAL_CONFIG_PATH, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
     return str(LOCAL_CONFIG_PATH)
 
@@ -97,21 +97,22 @@ def quick_status() -> Dict[str, Any]:
     sa_exists = LOCAL_SA_PATH.exists()
     admin_app = init_admin()
     return {
-        'config_path': str(LOCAL_CONFIG_PATH),
-        'config_exists': cfg_exists,
-        'sa_path': str(LOCAL_SA_PATH),
-        'sa_exists': sa_exists,
-        'admin_initialized': admin_app is not None
+        "config_path": str(LOCAL_CONFIG_PATH),
+        "config_exists": cfg_exists,
+        "sa_path": str(LOCAL_SA_PATH),
+        "sa_exists": sa_exists,
+        "admin_initialized": admin_app is not None,
     }
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     # Local smoke test
     try:
-        config = json.load(open('firebase_config.json', 'r', encoding='utf-8'))
+        config = json.load(open("firebase_config.json", "r", encoding="utf-8"))
         rep = validate_config(config)
-        print('Validation:', rep)
+        print("Validation:", rep)
         p = save_config_locally(config)
-        print('Saved to:', p)
-        print('Status:', quick_status())
+        print("Saved to:", p)
+        print("Status:", quick_status())
     except Exception as e:
-        print('Error:', e)
+        print("Error:", e)

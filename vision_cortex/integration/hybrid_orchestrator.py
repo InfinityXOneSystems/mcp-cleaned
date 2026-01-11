@@ -5,6 +5,7 @@ Behaviors:
 - Sends long-running tasks to AgentFactory for async execution (in-process queue by default)
 - Optionally integrates with Celery if `USE_CELERY=true` and Celery is installed.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -19,12 +20,17 @@ try:
 except Exception:
     AgentFactory = None
 
-from vision_cortex.integration.agent_integration import init_agents
-from vision_cortex.comms.router import SmartRouter
 from vision_cortex.agents.base_agent import AgentContext
-
-from vision_cortex.instrumentation.observability import metrics, PROM_DISPATCH_QUICK, PROM_ENQUEUE_LONG, PROM_QUEUE_DEPTH, store_task
+from vision_cortex.comms.router import SmartRouter
 from vision_cortex.instrumentation import observability as obs
+from vision_cortex.instrumentation.observability import (
+    PROM_DISPATCH_QUICK,
+    PROM_ENQUEUE_LONG,
+    PROM_QUEUE_DEPTH,
+    metrics,
+    store_task,
+)
+from vision_cortex.integration.agent_integration import init_agents
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +47,9 @@ class HybridOrchestrator:
     def __init__(self, use_celery: bool = False):
         self.router: SmartRouter = init_agents()
         self.factory = AgentFactory() if AgentFactory else None
-        self.use_celery = use_celery and os.environ.get("USE_CELERY", "false").lower() == "true"
+        self.use_celery = (
+            use_celery and os.environ.get("USE_CELERY", "false").lower() == "true"
+        )
         self._queue = None
         if self.use_celery:
             logger.info("HybridOrchestrator using Celery (configured via USE_CELERY)")
@@ -50,7 +58,9 @@ class HybridOrchestrator:
         else:
             self._queue = InProcessQueue()
 
-    def dispatch_quick(self, intent: str, ctx: AgentContext, data: Dict[str, Any]) -> Dict[str, Any]:
+    def dispatch_quick(
+        self, intent: str, ctx: AgentContext, data: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Dispatch using SmartRouter for quick, low-latency tasks."""
         metrics.increment("dispatch_quick_total")
         if PROM_DISPATCH_QUICK:
@@ -58,7 +68,9 @@ class HybridOrchestrator:
         payload = {"context": ctx, "data": data}
         return self.router.dispatch(intent, payload)
 
-    async def execute_long(self, role: str, objective: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def execute_long(
+        self, role: str, objective: str, context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """Execute long-running task via AgentFactory (async).
 
         If AgentFactory is not available, raise.
@@ -78,7 +90,9 @@ class HybridOrchestrator:
             "reasoning": result.reasoning,
         }
 
-    async def enqueue_long(self, role: str, objective: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def enqueue_long(
+        self, role: str, objective: str, context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """Enqueue a long-running task: uses Celery if configured, otherwise runs in-process."""
         task_id = f"task_{uuid.uuid4().hex[:8]}"
         metrics.increment("enqueue_long_total")
@@ -98,9 +112,14 @@ class HybridOrchestrator:
         if self.use_celery:
             try:
                 from vision_cortex.integration.celery_app import execute_long_task
+
                 # call Celery task asynchronously
                 async_result = execute_long_task.delay(role, objective, context)
-                return {"task_id": task_id, "status": "queued", "celery_id": async_result.id}
+                return {
+                    "task_id": task_id,
+                    "status": "queued",
+                    "celery_id": async_result.id,
+                }
             except Exception as e:
                 logger.exception("Failed to enqueue Celery task: %s", e)
                 raise

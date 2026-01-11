@@ -3,6 +3,7 @@
 These dataclasses define the payloads exchanged between agents and the router.
 They stay lightweight and dependency-free to ease testing and portability.
 """
+
 from __future__ import annotations
 
 import time

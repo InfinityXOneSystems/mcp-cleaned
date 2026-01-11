@@ -2,38 +2,46 @@
 REST API endpoints for autonomy stack
 Provides /agents, /tasks, /memory, /models, /pipeline endpoints
 """
-from fastapi import APIRouter, HTTPException, Header, Query, Depends
-from pydantic import BaseModel
-from typing import Optional, Dict, Any, List
+
 import logging
-import asyncio
+from typing import Any, Dict, List, Optional
+
+from fastapi import APIRouter, Depends, Header, HTTPException
+from pydantic import BaseModel
 
 from .agent_factory import AgentFactory
-from .task_queue import TaskQueue
 from .memory_layer import MemoryLayer
-from .security import SecurityManager, get_security_manager
 from .models import (
-    AgentConfig, AgentRole, TaskRequest, TaskResult, TaskStatus,
-    MemoryEntry, PipelineConfig, ModelExperimentConfig
+    AgentConfig,
+    AgentRole,
+    MemoryEntry,
+    ModelExperimentConfig,
+    TaskRequest,
+    TaskResult,
 )
+from .security import SecurityManager, get_security_manager
+from .task_queue import TaskQueue
 
 logger = logging.getLogger(__name__)
 
 
 class HealthResponse(BaseModel):
     """Health check response"""
+
     status: str
     message: str
 
 
 class AgentListResponse(BaseModel):
     """List of available agents"""
+
     agents: Dict[str, str]
     count: int
 
 
 class TaskSubmitResponse(BaseModel):
     """Task submission response"""
+
     task_id: str
     status: str
     message: str
@@ -41,6 +49,7 @@ class TaskSubmitResponse(BaseModel):
 
 class TaskStatusResponse(BaseModel):
     """Task status response"""
+
     task_id: str
     status: str
     result: Optional[Any] = None
@@ -49,6 +58,7 @@ class TaskStatusResponse(BaseModel):
 
 class MemoryQueryRequest(BaseModel):
     """Memory query request"""
+
     query: str
     collection: str = "shared"
     n_results: int = 5
@@ -57,6 +67,7 @@ class MemoryQueryRequest(BaseModel):
 
 class MemoryStoreRequest(BaseModel):
     """Memory store request"""
+
     content: str
     metadata: Dict[str, Any]
     agent_role: Optional[str] = None
@@ -64,6 +75,7 @@ class MemoryStoreRequest(BaseModel):
 
 class PipelineExecuteRequest(BaseModel):
     """Pipeline execution request"""
+
     pipeline_name: str
     agents: List[str]
     objectives: List[str]
@@ -85,7 +97,10 @@ def get_memory_layer() -> MemoryLayer:
     return MemoryLayer()
 
 
-def verify_api_key(x_api_key: str = Header(...), security: SecurityManager = Depends(get_security_manager)) -> bool:
+def verify_api_key(
+    x_api_key: str = Header(...),
+    security: SecurityManager = Depends(get_security_manager),
+) -> bool:
     """Verify API key from header"""
     if not security.validate_api_key(x_api_key):
         raise HTTPException(status_code=401, detail="Invalid API key")
@@ -95,7 +110,7 @@ def verify_api_key(x_api_key: str = Header(...), security: SecurityManager = Dep
 def create_routes(
     agent_factory: Optional[AgentFactory] = None,
     task_queue: Optional[TaskQueue] = None,
-    memory_layer: Optional[MemoryLayer] = None
+    memory_layer: Optional[MemoryLayer] = None,
 ) -> APIRouter:
     """Create autonomy stack routes"""
     router = APIRouter(prefix="/autonomy", tags=["autonomy"])
@@ -111,7 +126,7 @@ def create_routes(
         """Health check endpoint"""
         return {
             "status": "healthy",
-            "message": f"Autonomy stack operational. Safe mode: {security.is_safe_mode()}"
+            "message": f"Autonomy stack operational. Safe mode: {security.is_safe_mode()}",
         }
 
     # ===== AGENT MANAGEMENT =====
@@ -119,10 +134,7 @@ def create_routes(
     async def list_agents(api_key: bool = Depends(verify_api_key)):
         """List available agents"""
         agents = factory.list_agents()
-        return {
-            "agents": agents,
-            "count": len(agents)
-        }
+        return {"agents": agents, "count": len(agents)}
 
     @router.get("/agent_templates", response_model=List[AgentConfig])
     async def get_agent_templates(api_key: bool = Depends(verify_api_key)):
@@ -147,13 +159,13 @@ def create_routes(
                 role=AgentRole.BUILDER,
                 name="Builder (Executor)",
                 description="Produces runnable artifacts, code, and infra steps.",
-                config={"tools": ["git","docker"], "max_retries": 2},
+                config={"tools": ["git", "docker"], "max_retries": 2},
             ),
             AgentConfig(
                 role=AgentRole.CRITIC,
                 name="Critic (Validator)",
                 description="Reviews proposals, finds gaps, and scores risks.",
-                config={"strictness": "high", "checks": ["security","compliance"]},
+                config={"strictness": "high", "checks": ["security", "compliance"]},
             ),
         ]
         return templates
@@ -164,29 +176,25 @@ def create_routes(
 
     @router.post("/agents/create")
     async def create_agent_instance(
-        body: AgentCreateRequest,
-        api_key: bool = Depends(verify_api_key)
+        body: AgentCreateRequest, api_key: bool = Depends(verify_api_key)
     ):
         """Create and persist an agent instance from a template plus optional overrides."""
         try:
             stored = factory.create_agent_instance(body.template, body.overrides)
-            return {
-                "created": True,
-                "instance": stored
-            }
+            return {"created": True, "instance": stored}
         except Exception as e:
             logger.error(f"Create agent instance failed: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
     @router.post("/agents/{role}/execute")
     async def execute_agent(
-        role: str,
-        request: TaskRequest,
-        api_key: bool = Depends(verify_api_key)
+        role: str, request: TaskRequest, api_key: bool = Depends(verify_api_key)
     ) -> TaskResult:
         """Execute a task with an agent"""
         try:
-            result = await factory.execute_task(role, request.objective, request.context)
+            result = await factory.execute_task(
+                role, request.objective, request.context
+            )
             return result
         except Exception as e:
             logger.error(f"Agent execution failed: {e}")
@@ -200,8 +208,7 @@ def create_routes(
     # ===== TASK MANAGEMENT =====
     @router.post("/tasks/submit", response_model=TaskSubmitResponse)
     async def submit_task(
-        request: TaskRequest,
-        api_key: bool = Depends(verify_api_key)
+        request: TaskRequest, api_key: bool = Depends(verify_api_key)
     ) -> Dict[str, Any]:
         """Submit a task to the queue"""
         try:
@@ -210,12 +217,12 @@ def create_routes(
                 objective=request.objective,
                 context=request.context,
                 priority=request.priority,
-                timeout=request.timeout_seconds
+                timeout=request.timeout_seconds,
             )
             return {
                 "task_id": task_id,
                 "status": "queued",
-                "message": f"Task submitted successfully"
+                "message": f"Task submitted successfully",
             }
         except Exception as e:
             logger.error(f"Task submission failed: {e}")
@@ -223,8 +230,7 @@ def create_routes(
 
     @router.get("/tasks/{task_id}/status", response_model=TaskStatusResponse)
     async def get_task_status(
-        task_id: str,
-        api_key: bool = Depends(verify_api_key)
+        task_id: str, api_key: bool = Depends(verify_api_key)
     ) -> Dict[str, Any]:
         """Get task status"""
         try:
@@ -235,8 +241,7 @@ def create_routes(
 
     @router.delete("/tasks/{task_id}")
     async def cancel_task(
-        task_id: str,
-        api_key: bool = Depends(verify_api_key)
+        task_id: str, api_key: bool = Depends(verify_api_key)
     ) -> Dict[str, Any]:
         """Cancel a task"""
         try:
@@ -244,7 +249,7 @@ def create_routes(
             return {
                 "task_id": task_id,
                 "cancelled": success,
-                "message": "Task cancelled" if success else "Failed to cancel task"
+                "message": "Task cancelled" if success else "Failed to cancel task",
             }
         except Exception as e:
             logger.error(f"Task cancellation failed: {e}")
@@ -258,8 +263,7 @@ def create_routes(
     # ===== MEMORY MANAGEMENT =====
     @router.post("/memory/store")
     async def store_memory(
-        request: MemoryStoreRequest,
-        api_key: bool = Depends(verify_api_key)
+        request: MemoryStoreRequest, api_key: bool = Depends(verify_api_key)
     ) -> Dict[str, Any]:
         """Store entry in memory"""
         try:
@@ -271,25 +275,20 @@ def create_routes(
                 content=request.content,
                 metadata=request.metadata,
                 agent_role=request.agent_role,
-                timestamp=datetime.now()
+                timestamp=datetime.now(),
             )
 
             collection = request.agent_role if request.agent_role else "shared"
             success = memory.store(entry, collection=collection)
 
-            return {
-                "success": success,
-                "entry_id": entry.id,
-                "collection": collection
-            }
+            return {"success": success, "entry_id": entry.id, "collection": collection}
         except Exception as e:
             logger.error(f"Memory store failed: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
     @router.post("/memory/retrieve")
     async def retrieve_memory(
-        request: MemoryQueryRequest,
-        api_key: bool = Depends(verify_api_key)
+        request: MemoryQueryRequest, api_key: bool = Depends(verify_api_key)
     ) -> Dict[str, Any]:
         """Retrieve memories by semantic similarity"""
         try:
@@ -297,13 +296,9 @@ def create_routes(
                 query=request.query,
                 collection=request.collection,
                 n_results=request.n_results,
-                agent_role=request.agent_role
+                agent_role=request.agent_role,
             )
-            return {
-                "query": request.query,
-                "results": results,
-                "count": len(results)
-            }
+            return {"query": request.query, "results": results, "count": len(results)}
         except Exception as e:
             logger.error(f"Memory retrieval failed: {e}")
             raise HTTPException(status_code=500, detail=str(e))
@@ -315,16 +310,12 @@ def create_routes(
 
     @router.delete("/memory/{collection}")
     async def clear_memory(
-        collection: str = "shared",
-        api_key: bool = Depends(verify_api_key)
+        collection: str = "shared", api_key: bool = Depends(verify_api_key)
     ) -> Dict[str, Any]:
         """Clear a memory collection"""
         try:
             success = memory.clear_collection(collection)
-            return {
-                "collection": collection,
-                "cleared": success
-            }
+            return {"collection": collection, "cleared": success}
         except Exception as e:
             logger.error(f"Memory clear failed: {e}")
             raise HTTPException(status_code=500, detail=str(e))
@@ -332,8 +323,7 @@ def create_routes(
     # ===== PIPELINE EXECUTION =====
     @router.post("/pipeline/execute")
     async def execute_pipeline(
-        request: PipelineExecuteRequest,
-        api_key: bool = Depends(verify_api_key)
+        request: PipelineExecuteRequest, api_key: bool = Depends(verify_api_key)
     ) -> Dict[str, Any]:
         """Execute multi-agent pipeline"""
         try:
@@ -343,14 +333,14 @@ def create_routes(
             results = await factory.execute_pipeline(
                 roles=request.agents,
                 objectives=request.objectives,
-                context=request.context
+                context=request.context,
             )
 
             return {
                 "pipeline_name": request.pipeline_name,
                 "status": "completed",
                 "results": [r.dict() for r in results],
-                "count": len(results)
+                "count": len(results),
             }
         except Exception as e:
             logger.error(f"Pipeline execution failed: {e}")
@@ -359,12 +349,12 @@ def create_routes(
     # ===== MODEL MANAGEMENT =====
     @router.post("/models/experiment")
     async def create_experiment(
-        config: ModelExperimentConfig,
-        api_key: bool = Depends(verify_api_key)
+        config: ModelExperimentConfig, api_key: bool = Depends(verify_api_key)
     ) -> Dict[str, Any]:
         """Create a model experiment"""
         try:
             import uuid
+
             experiment_id = str(uuid.uuid4())[:8]
 
             experiment = {
@@ -375,7 +365,7 @@ def create_routes(
                 "status": "created",
                 "batch_size": config.batch_size,
                 "epochs": config.epochs,
-                "created_at": datetime.now().isoformat()
+                "created_at": datetime.now().isoformat(),
             }
 
             return experiment
@@ -386,11 +376,7 @@ def create_routes(
     @router.get("/models/experiments")
     async def list_experiments(api_key: bool = Depends(verify_api_key)):
         """List model experiments"""
-        return {
-            "experiments": [],
-            "total": 0,
-            "message": "No experiments yet"
-        }
+        return {"experiments": [], "total": 0, "message": "No experiments yet"}
 
     return router
 

@@ -1,8 +1,8 @@
 import asyncio
+import os
 import subprocess
 import sys
 import time
-import os
 from pathlib import Path
 
 # Minimal preview helper: starts uvicorn, waits for dashboard, screenshots with pyppeteer.
@@ -10,10 +10,23 @@ from pathlib import Path
 
 DASH_URL = "http://127.0.0.1:8000/webview/dashboard.html"
 OUT_PATH = Path(__file__).resolve().parent.parent / "webview" / "dashboard_preview.png"
-UVicorn_CMD = [sys.executable, "-m", "uvicorn", "omni_gateway:app", "--host", "127.0.0.1", "--port", "8000", "--log-level", "warning"]
+UVicorn_CMD = [
+    sys.executable,
+    "-m",
+    "uvicorn",
+    "omni_gateway:app",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "8000",
+    "--log-level",
+    "warning",
+]
+
 
 def wait_for_url(url, timeout=20.0):
     import requests
+
     t0 = time.time()
     while time.time() - t0 < timeout:
         try:
@@ -24,6 +37,7 @@ def wait_for_url(url, timeout=20.0):
             pass
         time.sleep(0.5)
     return False
+
 
 async def capture(url, out_path):
     try:
@@ -42,17 +56,25 @@ async def capture(url, out_path):
     await browser.close()
     return True
 
+
 def main():
     # ensure output dir exists
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
 
     print("Starting uvicorn server...")
-    proc = subprocess.Popen(UVicorn_CMD, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, cwd=str(Path(__file__).resolve().parent.parent))
+    proc = subprocess.Popen(
+        UVicorn_CMD,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        cwd=str(Path(__file__).resolve().parent.parent),
+    )
 
     try:
         ok = wait_for_url(DASH_URL, timeout=25.0)
         if not ok:
-            print(f"Dashboard not available at {DASH_URL} (timeout). Check that omni_gateway mounts /webview and api_dashboard is included.")
+            print(
+                f"Dashboard not available at {DASH_URL} (timeout). Check that omni_gateway mounts /webview and api_dashboard is included."
+            )
             return
 
         print(f"Dashboard reachable. Capturing screenshot to {OUT_PATH} ...")
@@ -71,7 +93,9 @@ def main():
             except Exception:
                 pass
         else:
-            print("Failed to capture screenshot. Ensure pyppeteer and a working Chromium are available.")
+            print(
+                "Failed to capture screenshot. Ensure pyppeteer and a working Chromium are available."
+            )
     finally:
         print("Stopping uvicorn server...")
         proc.terminate()
@@ -79,6 +103,7 @@ def main():
             proc.wait(timeout=5)
         except Exception:
             proc.kill()
+
 
 if __name__ == "__main__":
     main()

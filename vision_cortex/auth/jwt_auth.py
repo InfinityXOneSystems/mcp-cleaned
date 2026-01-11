@@ -2,11 +2,12 @@
 
 Set `JWT_SECRET` and optionally `JWT_ALGORITHM` (default HS256) in env.
 """
+
 from __future__ import annotations
 
-import os
 import logging
-from typing import Optional, Dict, Any
+import os
+from typing import Any, Dict, Optional
 
 import jwt
 

@@ -5,7 +5,6 @@ This ensures the allowlist check in `safety.py` reads the environment variable.
 """
 import os
 import runpy
-import sys
 
 if __name__ == "__main__":
     # Minimal default; can be overridden by environment or callers

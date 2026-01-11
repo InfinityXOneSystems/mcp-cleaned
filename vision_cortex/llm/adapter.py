@@ -4,11 +4,11 @@ This adapter exposes `call(prompt)` to get a string response.
 If `OPENAI_API_KEY` is set in the environment, it will call OpenAI's completion API.
 Otherwise, it returns a canned response for local testing.
 """
+
 from __future__ import annotations
 
-import os
 import logging
-from typing import Optional
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +19,7 @@ def call(prompt: str, max_tokens: int = 256) -> str:
     if OPENAI_KEY:
         try:
             import openai
+
             openai.api_key = OPENAI_KEY
             resp = openai.ChatCompletion.create(
                 model=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),

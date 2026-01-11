@@ -11,18 +11,19 @@ A unified meta-reasoning system combining:
 
 This is the core of the Synthetic Civilization Brain.
 """
+
 from .core import QuantumReasoningEngine
-from .streams import ParallelCognitiveStreams
-from .debate import DebateArena, ConsensusBuilder
-from .temporal import TemporalMemory, FutureProjector
-from .triad import StrategistJudgeMapper
+from .debate import ConsensusBuilder, DebateArena
+from .emotional import EmotionalResonance
 from .evolution import EvolutionEngine
 from .identity import SelfModelingIdentity
-from .emotional import EmotionalResonance
+from .streams import ParallelCognitiveStreams
+from .temporal import FutureProjector, TemporalMemory
+from .triad import StrategistJudgeMapper
 
 __all__ = [
     "QuantumReasoningEngine",
-    "ParallelCognitiveStreams", 
+    "ParallelCognitiveStreams",
     "DebateArena",
     "ConsensusBuilder",
     "TemporalMemory",

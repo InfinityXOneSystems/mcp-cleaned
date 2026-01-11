@@ -3,35 +3,41 @@
 
 This is a minimal orchestrator intended for cloud deployment (cronjob or K8s Job).
 """
-import time
-import requests
 import os
+import time
 
-GATEWAY = os.environ.get('GATEWAY_URL', 'http://localhost:8000')
+import requests
+
+GATEWAY = os.environ.get("GATEWAY_URL", "http://localhost:8000")
+
 
 def trigger_crawl(url):
-    r = requests.post(f'{GATEWAY}/crawl', json={'url': url, 'depth': 1}, timeout=10)
+    r = requests.post(f"{GATEWAY}/crawl", json={"url": url, "depth": 1}, timeout=10)
     return r.status_code, r.text[:200]
+
 
 def trigger_ingest(doc):
-    r = requests.post(f'{GATEWAY}/ingest', json=doc, timeout=10)
+    r = requests.post(f"{GATEWAY}/ingest", json=doc, timeout=10)
     return r.status_code, r.text[:200]
 
+
 def trigger_predict(payload):
-    r = requests.post(f'{GATEWAY}/predict', json=payload, timeout=10)
+    r = requests.post(f"{GATEWAY}/predict", json=payload, timeout=10)
     return r.status_code, r.text[:200]
+
 
 def main():
     # Example target list - replace with production sources or cloud config
     targets = [
-        'https://example.com',
+        "https://example.com",
     ]
     for t in targets:
-        print('Triggering crawl', t)
+        print("Triggering crawl", t)
         print(trigger_crawl(t))
         time.sleep(1)
-        print('Triggering predict (demo)')
-        print(trigger_predict({'model': 'baseline', 'input': {'url': t}}))
+        print("Triggering predict (demo)")
+        print(trigger_predict({"model": "baseline", "input": {"url": t}}))
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

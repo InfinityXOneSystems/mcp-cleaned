@@ -1,20 +1,25 @@
 """In-process Pub/Sub bus with basic observability and error isolation."""
+
 from __future__ import annotations
 
 import logging
 import threading
 from collections import defaultdict
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List
 
 
 class MessageBus:
     def __init__(self, name: str = "vision_cortex") -> None:
-        self._subscribers: Dict[str, List[Callable[[Dict[str, Any]], None]]] = defaultdict(list)
+        self._subscribers: Dict[str, List[Callable[[Dict[str, Any]], None]]] = (
+            defaultdict(list)
+        )
         self._lock = threading.Lock()
         self._logger = logging.getLogger(f"vision_cortex.bus.{name}")
         self._middlewares: List[Callable[[str, Dict[str, Any]], Dict[str, Any]]] = []
 
-    def add_middleware(self, middleware: Callable[[str, Dict[str, Any]], Dict[str, Any]]) -> None:
+    def add_middleware(
+        self, middleware: Callable[[str, Dict[str, Any]], Dict[str, Any]]
+    ) -> None:
         """Register middleware that can enrich or filter payloads."""
         with self._lock:
             self._middlewares.append(middleware)

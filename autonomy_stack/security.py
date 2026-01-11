@@ -1,14 +1,16 @@
 """
 Security manager for API keys, encryption, and secure access
 """
-import os
-import json
+
 import hashlib
-import secrets
-from typing import Dict, Optional, Any
-from functools import lru_cache
-from dotenv import load_dotenv
+import json
 import logging
+import os
+import secrets
+from functools import lru_cache
+from typing import Any, Dict, Optional
+
+from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
@@ -38,12 +40,18 @@ class SecurityManager:
             # Redis
             "redis_url": self._get_secret("REDIS_URL", "redis://localhost:6379/0"),
             # Celery
-            "celery_broker": self._get_secret("CELERY_BROKER_URL", "redis://localhost:6379/1"),
-            "celery_backend": self._get_secret("CELERY_RESULT_BACKEND", "redis://localhost:6379/2"),
+            "celery_broker": self._get_secret(
+                "CELERY_BROKER_URL", "redis://localhost:6379/1"
+            ),
+            "celery_backend": self._get_secret(
+                "CELERY_RESULT_BACKEND", "redis://localhost:6379/2"
+            ),
             # MCP
             "mcp_api_key": self._get_secret("MCP_API_KEY"),
             # Security
-            "jwt_secret": self._get_secret("JWT_SECRET_KEY", self._generate_jwt_secret()),
+            "jwt_secret": self._get_secret(
+                "JWT_SECRET_KEY", self._generate_jwt_secret()
+            ),
             "safe_mode": self._get_secret("SAFE_MODE", "true").lower() == "true",
         }
 
@@ -91,7 +99,9 @@ class SecurityManager:
         """Check if safe mode is enabled"""
         return self._secrets.get("safe_mode", True)
 
-    def validate_api_key(self, provided_key: str, expected_env_var: str = "MCP_API_KEY") -> bool:
+    def validate_api_key(
+        self, provided_key: str, expected_env_var: str = "MCP_API_KEY"
+    ) -> bool:
         """Validate API key matches environment"""
         expected = os.environ.get(expected_env_var)
         if not expected:
@@ -114,27 +124,30 @@ class SecurityManager:
         """Hash a token for storage"""
         return hashlib.sha256(token.encode()).hexdigest()
 
-    def create_secure_env(self, overrides: Optional[Dict[str, Any]] = None) -> Dict[str, str]:
+    def create_secure_env(
+        self, overrides: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, str]:
         """Create a secure environment dict for subprocess"""
         env = os.environ.copy()
-        
+
         # Add known secrets
         if self.get_secret("openai_api_key"):
             env["OPENAI_API_KEY"] = self.get_secret("openai_api_key")
-        
+
         # Apply overrides
         if overrides:
             env.update(overrides)
-        
+
         return env
 
     def validate_domain(self, url: str, allowed_domains: Optional[list] = None) -> bool:
         """Validate domain against allowlist for browser automation"""
         if allowed_domains is None:
             allowed_domains = ["localhost", "127.0.0.1", "example.com"]
-        
+
         try:
             from urllib.parse import urlparse
+
             parsed = urlparse(url)
             domain = parsed.netloc.split(":")[0]
             return domain in allowed_domains
@@ -147,14 +160,14 @@ class SecurityManager:
         cred_path = self._secrets.get("google_credentials")
         if not cred_path:
             return None
-        
+
         try:
             if os.path.exists(cred_path):
                 with open(cred_path, "r") as f:
                     return json.load(f)
         except Exception as e:
             logger.error(f"Failed to load Firestore credentials: {e}")
-        
+
         return None
 
 

@@ -12,13 +12,12 @@ Categories:
 - ANALYSIS: Analysis capabilities (Auto Gap, Auto Competition, Auto Market, etc.)
 - WORKFLOW: Workflow automation (Auto Workflow, Auto Orchestrator, etc.)
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from .registry import PromptDefinition
-
 
 # =============================================================================
 # SYSTEM DOMAIN PROMPTS
@@ -28,7 +27,16 @@ AUTO_ALL = PromptDefinition(
     level=6,
     description="Autonomous Backend Engineering Orchestrator: Discover → Analyze → Plan → Act → Validate → Log → Propose Next → Repeat across code, infra, automations, docs, repos, and AI configuration.",
     execution="background",
-    agents=["crawler", "ingestor", "organizer", "predictor", "strategist", "validator", "documentor", "evolver"],
+    agents=[
+        "crawler",
+        "ingestor",
+        "organizer",
+        "predictor",
+        "strategist",
+        "validator",
+        "documentor",
+        "evolver",
+    ],
     tags=["system", "orchestration", "auto"],
     governance_level="HIGH",
 )
@@ -795,14 +803,16 @@ def resolve_domain_alias(name: str) -> Optional[PromptDefinition]:
 
 
 def list_domain_prompts(
-    category: Optional[str] = None, 
+    category: Optional[str] = None,
     tag: Optional[str] = None,
-    level: Optional[int] = None
+    level: Optional[int] = None,
 ) -> List[PromptDefinition]:
     """List domain prompts, optionally filtering by category/tag/level."""
     results = list(DOMAIN_PROMPT_REGISTRY.values())
     if category:
-        results = [p for p in results if category.lower() in (t.lower() for t in p.tags)]
+        results = [
+            p for p in results if category.lower() in (t.lower() for t in p.tags)
+        ]
     if tag:
         results = [p for p in results if tag.lower() in (t.lower() for t in p.tags)]
     if level is not None:

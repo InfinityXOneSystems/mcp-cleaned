@@ -4,13 +4,15 @@ import os
 import socket
 import time
 from typing import Iterable, Set
-from urllib.parse import urlparse
 from urllib import robotparser
+from urllib.parse import urlparse
 
 import httpx
 
 SCRAPER_ALLOWED_HOSTS: Set[str] = {
-    h.strip().lower() for h in os.getenv("SCRAPER_ALLOWED_HOSTS", "").split(",") if h.strip()
+    h.strip().lower()
+    for h in os.getenv("SCRAPER_ALLOWED_HOSTS", "").split(",")
+    if h.strip()
 }
 SCRAPER_USER_AGENT = os.getenv(
     "SCRAPER_USER_AGENT", "InfinityXOSBot/1.0 (+contact: security@infinity-xos.local)"
@@ -20,7 +22,9 @@ SCRAPER_MIN_DELAY = float(os.getenv("SCRAPER_MIN_DELAY", "1.0"))
 
 def _ensure_allowlist() -> None:
     if not SCRAPER_ALLOWED_HOSTS:
-        raise ValueError("SCRAPER_ALLOWED_HOSTS must be set to a comma-separated host allowlist")
+        raise ValueError(
+            "SCRAPER_ALLOWED_HOSTS must be set to a comma-separated host allowlist"
+        )
 
 
 def _host_in_allowlist(host: str) -> bool:
@@ -43,7 +47,13 @@ def _assert_public_host(host: str) -> None:
         raise ValueError(f"DNS lookup failed for host {host}: {exc}") from exc
     for ip in ips:
         addr = ipaddress.ip_address(ip)
-        if addr.is_private or addr.is_loopback or addr.is_reserved or addr.is_link_local or addr.is_multicast:
+        if (
+            addr.is_private
+            or addr.is_loopback
+            or addr.is_reserved
+            or addr.is_link_local
+            or addr.is_multicast
+        ):
             raise ValueError(f"Host {host} resolves to a non-public IP ({ip})")
 
 
@@ -95,7 +105,9 @@ class RateLimiter:
         self._last[host] = time.time()
 
 
-async def robots_can_fetch_httpx(url: str, user_agent: str = SCRAPER_USER_AGENT, timeout: float = 5.0) -> bool:
+async def robots_can_fetch_httpx(
+    url: str, user_agent: str = SCRAPER_USER_AGENT, timeout: float = 5.0
+) -> bool:
     """Return False on any failure (default-deny) or robots disallow."""
     _ensure_allowlist()
     parsed = urlparse(url)
@@ -113,14 +125,18 @@ async def robots_can_fetch_httpx(url: str, user_agent: str = SCRAPER_USER_AGENT,
     return rp.can_fetch(user_agent, url)
 
 
-async def robots_can_fetch_aiohttp(session, url: str, user_agent: str = SCRAPER_USER_AGENT, timeout: float = 5.0) -> bool:
+async def robots_can_fetch_aiohttp(
+    session, url: str, user_agent: str = SCRAPER_USER_AGENT, timeout: float = 5.0
+) -> bool:
     """Same as robots_can_fetch_httpx but reuses an aiohttp session; default-deny on error."""
     _ensure_allowlist()
     parsed = urlparse(url)
     robots_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
     rp = robotparser.RobotFileParser()
     try:
-        async with session.get(robots_url, headers={"User-Agent": user_agent}, timeout=timeout) as resp:
+        async with session.get(
+            robots_url, headers={"User-Agent": user_agent}, timeout=timeout
+        ) as resp:
             if resp.status >= 400:
                 return False
             text = await resp.text()

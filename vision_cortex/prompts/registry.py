@@ -10,6 +10,7 @@ aligned with AUTONOMOUS_PROMPTS.md levels. Each prompt has:
 - agents: Vision Cortex agents this prompt invokes
 - tags: for routing/filtering
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -168,7 +169,15 @@ L7_DAG_EXECUTION = PromptDefinition(
     level=7,
     description="Execute DAG-based workflows: parallelize independent tasks, handle dependencies, retries.",
     execution="background",
-    agents=["crawler", "ingestor", "organizer", "predictor", "strategist", "validator", "documentor"],
+    agents=[
+        "crawler",
+        "ingestor",
+        "organizer",
+        "predictor",
+        "strategist",
+        "validator",
+        "documentor",
+    ],
     tags=["dag", "orchestration"],
     governance_level="HIGH",
 )
@@ -284,7 +293,8 @@ CORE_PROMPT_REGISTRY: Dict[str, PromptDefinition] = {
 
 # Import domain prompts and merge
 try:
-    from .domain_registry import DOMAIN_PROMPT_REGISTRY, DOMAIN_ALIASES
+    from .domain_registry import DOMAIN_ALIASES, DOMAIN_PROMPT_REGISTRY
+
     PROMPT_REGISTRY: Dict[str, PromptDefinition] = {
         **CORE_PROMPT_REGISTRY,
         **DOMAIN_PROMPT_REGISTRY,
@@ -327,7 +337,9 @@ def resolve_alias(name: str) -> Optional[PromptDefinition]:
     return PROMPT_REGISTRY.get(canonical)
 
 
-def list_prompts(level: Optional[int] = None, tag: Optional[str] = None) -> List[PromptDefinition]:
+def list_prompts(
+    level: Optional[int] = None, tag: Optional[str] = None
+) -> List[PromptDefinition]:
     """List prompts, optionally filtering by level or tag."""
     results = list(PROMPT_REGISTRY.values())
     if level is not None:

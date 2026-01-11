@@ -1,20 +1,20 @@
 """Agent integration helper: creates a SimpleBus, registers premade agents,
 and returns a configured SmartRouter for use by the gateway.
 """
+
 from __future__ import annotations
 
 import logging
 from typing import Any, Callable, Dict
 
-from vision_cortex.comms.router import SmartRouter
-from vision_cortex.agents.base_agent import AgentContext
+from vision_cortex.agents.agent_builder import AgentBuilderAgent
 
 # Import some premade agents (exists in repo)
 from vision_cortex.agents.crawler import CrawlerAgent
 from vision_cortex.agents.ingestor import IngestorAgent
 from vision_cortex.agents.predictor import PredictorAgent
 from vision_cortex.agents.visionary import VisionaryAgent
-from vision_cortex.agents.agent_builder import AgentBuilderAgent
+from vision_cortex.comms.router import SmartRouter
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,9 @@ def init_agents() -> SmartRouter:
         router.map_intent("vision", "visionary")
         router.map_intent("build_agent", "agent_builder")
 
-        logger.info("Initialized default agents: crawler, ingestor, predictor, visionary")
+        logger.info(
+            "Initialized default agents: crawler, ingestor, predictor, visionary"
+        )
     except Exception:
         logger.exception("Failed to initialize some premade agents")
 

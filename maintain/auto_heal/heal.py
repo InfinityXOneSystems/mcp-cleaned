@@ -1,14 +1,19 @@
-import json, os
+import json
+import os
 from datetime import datetime
 
-BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "records", "maintain", "auto_heal"))
+BASE = os.path.abspath(
+    os.path.join(
+        os.path.dirname(__file__), "..", "..", "records", "maintain", "auto_heal"
+    )
+)
 os.makedirs(BASE, exist_ok=True)
 
 payload = {
     "module": "auto_heal",
     "timestamp": datetime.now().isoformat(),
     "status": "success",
-    "healed": ["Restarted stalled services if any"]
+    "healed": ["Restarted stalled services if any"],
 }
 
 out = os.path.join(BASE, f"auto_heal_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")

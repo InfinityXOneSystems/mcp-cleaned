@@ -3,20 +3,22 @@
 import os
 import zipfile
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-OUT = os.path.join(ROOT, 'openapi-bundle.zip')
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+OUT = os.path.join(ROOT, "openapi-bundle.zip")
 FILES = [
-    os.path.join(ROOT, 'openapi', 'omni-gateway.yaml'),
-    os.path.join(ROOT, 'openapi', 'orchestrator.yaml'),
-    os.path.join(ROOT, 'openapi', 'combined.yaml'),
+    os.path.join(ROOT, "openapi", "omni-gateway.yaml"),
+    os.path.join(ROOT, "openapi", "orchestrator.yaml"),
+    os.path.join(ROOT, "openapi", "combined.yaml"),
 ]
 
+
 def main():
-    with zipfile.ZipFile(OUT, 'w', zipfile.ZIP_DEFLATED) as z:
+    with zipfile.ZipFile(OUT, "w", zipfile.ZIP_DEFLATED) as z:
         for f in FILES:
             if os.path.exists(f):
-                z.write(f, os.path.join('openapi', os.path.basename(f)))
-    print('Wrote', OUT)
+                z.write(f, os.path.join("openapi", os.path.basename(f)))
+    print("Wrote", OUT)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

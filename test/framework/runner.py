@@ -1,8 +1,9 @@
 import importlib
 import pkgutil
-from typing import Dict, Any, List
-from .reporting import write_json_record
+from typing import Any, Dict, List
+
 from ..config import BASE_RECORDS_PATH
+from .reporting import write_json_record
 
 
 def discover_subsystems(package_path: str) -> List[str]:
@@ -22,7 +23,10 @@ def run_subsystem(name: str) -> Dict[str, Any]:
 
 
 def run_all(subsystems: List[str]) -> Dict[str, Any]:
-    results = {"summary": {"total": 0, "success": 0, "fail": 0, "skipped": 0}, "details": []}
+    results = {
+        "summary": {"total": 0, "success": 0, "fail": 0, "skipped": 0},
+        "details": [],
+    }
     for name in subsystems:
         res = run_subsystem(name)
         # Write per-subsystem record mirrored under records/subsystems/<name>

@@ -1,4 +1,5 @@
 """Visionary agent: imagines futures and possibilities from predictions."""
+
 from __future__ import annotations
 
 import time
@@ -10,7 +11,9 @@ from vision_cortex.agents.base_agent import AgentContext, BaseAgent
 class VisionaryAgent(BaseAgent):
     role = "visionary"
 
-    def run_task(self, context: AgentContext, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def run_task(
+        self, context: AgentContext, payload: Dict[str, Any]
+    ) -> Dict[str, Any]:
         predictions = payload.get("predictions", {}).get("predictions", [])
         scenarios: List[Dict[str, Any]] = []
         for pred in predictions:
@@ -25,14 +28,18 @@ class VisionaryAgent(BaseAgent):
                 ],
             }
             scenarios.append(scenario)
-            self.log_event("Imagined scenario", context, {"confidence": scenario["confidence"]})
+            self.log_event(
+                "Imagined scenario", context, {"confidence": scenario["confidence"]}
+            )
         self.publish_event("scenarios", context, {"count": len(scenarios)})
-        self.persist_memory({
-            "type": "scenario_batch",
-            "session_hash": context.session_id,
-            "task_id": context.task_id,
-            "content": scenarios,
-            "confidence": context.confidence,
-            "created_at": time.time(),
-        })
+        self.persist_memory(
+            {
+                "type": "scenario_batch",
+                "session_hash": context.session_id,
+                "task_id": context.task_id,
+                "content": scenarios,
+                "confidence": context.confidence,
+                "created_at": time.time(),
+            }
+        )
         return {"scenarios": scenarios}

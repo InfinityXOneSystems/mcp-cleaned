@@ -1,8 +1,9 @@
 import os
-import uvicorn
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
+
 import httpx
+import uvicorn
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse
 
 app = FastAPI(title="MCP Demo Dashboard Server")
 
@@ -10,14 +11,19 @@ app = FastAPI(title="MCP Demo Dashboard Server")
 DASH_HTML = os.path.join(os.path.dirname(__file__), "..", "webview", "dashboard.html")
 DASH_HTML = os.path.normpath(DASH_HTML)
 
+
 @app.get("/", include_in_schema=False)
 async def root():
     if not os.path.exists(DASH_HTML):
-        raise HTTPException(status_code=404, detail=f"Dashboard not found at {DASH_HTML}")
+        raise HTTPException(
+            status_code=404, detail=f"Dashboard not found at {DASH_HTML}"
+        )
     return FileResponse(DASH_HTML, media_type="text/html")
+
 
 # Default backend (can be overridden by environment or request)
 BACKEND_DEFAULT = os.environ.get("MCP_BACKEND_URL", "http://localhost:8000")
+
 
 @app.get("/api/proxy/health")
 async def proxy_health(base_url: str = None):
@@ -33,6 +39,7 @@ async def proxy_health(base_url: str = None):
             raise HTTPException(status_code=502, detail=f"Request error: {e}")
         except httpx.HTTPStatusError as e:
             raise HTTPException(status_code=e.response.status_code, detail=str(e))
+
 
 @app.post("/api/proxy/predict")
 async def proxy_predict(request: Request):
@@ -50,6 +57,7 @@ async def proxy_predict(request: Request):
             raise HTTPException(status_code=502, detail=f"Request error: {e}")
         except httpx.HTTPStatusError as e:
             raise HTTPException(status_code=e.response.status_code, detail=str(e))
+
 
 if __name__ == "__main__":
     uvicorn.run("demo.dashboard_server:app", host="0.0.0.0", port=9000, reload=False)

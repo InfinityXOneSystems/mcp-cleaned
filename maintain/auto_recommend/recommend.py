@@ -1,7 +1,12 @@
-import json, os
+import json
+import os
 from datetime import datetime
 
-BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "records", "maintain", "auto_recommend"))
+BASE = os.path.abspath(
+    os.path.join(
+        os.path.dirname(__file__), "..", "..", "records", "maintain", "auto_recommend"
+    )
+)
 os.makedirs(BASE, exist_ok=True)
 
 payload = {
@@ -10,11 +15,13 @@ payload = {
     "status": "success",
     "recommendations": [
         "Set GITHUB_TOKEN for full GitHub tool coverage",
-        "Install Playwright to enable crawler screenshots"
-    ]
+        "Install Playwright to enable crawler screenshots",
+    ],
 }
 
-out = os.path.join(BASE, f"auto_recommend_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+out = os.path.join(
+    BASE, f"auto_recommend_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+)
 with open(out, "w", encoding="utf-8") as f:
     json.dump(payload, f, indent=2)
 

@@ -1,10 +1,11 @@
 """
 Seed demo trading accounts with starting balances
 """
+
 import sqlite3
 from datetime import datetime
 
-DB_PATH = 'mcp_memory.db'
+DB_PATH = "mcp_memory.db"
 
 conn = sqlite3.connect(DB_PATH)
 cur = conn.cursor()
@@ -20,18 +21,21 @@ if count > 0:
 
 # Create 3 demo accounts
 accounts = [
-    ('AI Automated', 'ai_automated', 5000.0),
-    ('Human Manual', 'human_manual', 5000.0),
-    ('Hybrid Partnership', 'hybrid_partnership', 5000.0)
+    ("AI Automated", "ai_automated", 5000.0),
+    ("Human Manual", "human_manual", 5000.0),
+    ("Hybrid Partnership", "hybrid_partnership", 5000.0),
 ]
 
 now = datetime.now().isoformat()
 
 for name, acct_type, balance in accounts:
-    cur.execute("""
+    cur.execute(
+        """
         INSERT INTO paper_accounts (account_name, account_type, starting_balance, current_balance, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?)
-    """, (name, acct_type, balance, balance, now, now))
+    """,
+        (name, acct_type, balance, balance, now, now),
+    )
 
 conn.commit()
 conn.close()

@@ -5,10 +5,10 @@ Governed by: /mcp/contracts/VISION_CORTEX_LAW.md Article XI
 Loop: OBSERVE → HYPOTHESIZE → CHALLENGE → VALIDATE → SYNTHESIZE → PERSIST → REFINE
 """
 
-from .improvement_loop import ImprovementLoop
-from .performance_delta_tracker import PerformanceDeltaTracker
 from .decision_history import DecisionHistory
+from .improvement_loop import ImprovementLoop
 from .mutation_tracker import MutationTracker
+from .performance_delta_tracker import PerformanceDeltaTracker
 from .rollback_engine import RollbackEngine
 
 __all__ = [
@@ -16,5 +16,5 @@ __all__ = [
     "PerformanceDeltaTracker",
     "DecisionHistory",
     "MutationTracker",
-    "RollbackEngine"
+    "RollbackEngine",
 ]

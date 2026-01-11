@@ -1,3 +1,4 @@
+from vision_cortex.prompts.executor import PromptExecutor
 from vision_cortex.prompts.registry import (
     ALIASES,
     PROMPT_REGISTRY,
@@ -5,7 +6,6 @@ from vision_cortex.prompts.registry import (
     list_prompts,
     resolve_alias,
 )
-from vision_cortex.prompts.executor import PromptExecutor
 
 __all__ = [
     "ALIASES",

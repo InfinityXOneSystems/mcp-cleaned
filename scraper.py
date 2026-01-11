@@ -1,9 +1,7 @@
-from urllib.parse import urlparse
-
 import httpx
 from bs4 import BeautifulSoup
 
-from safety import RateLimiter, SCRAPER_USER_AGENT, robots_can_fetch_httpx, validate_url
+from safety import SCRAPER_USER_AGENT, RateLimiter, robots_can_fetch_httpx, validate_url
 
 _rate_limiter = RateLimiter()
 
@@ -14,7 +12,9 @@ async def fetch_html(url: str, timeout: int = 20) -> str:
     if not allowed:
         raise PermissionError("Blocked by robots.txt")
     await _rate_limiter.wait(host)
-    async with httpx.AsyncClient(timeout=timeout, headers={"User-Agent": SCRAPER_USER_AGENT}) as client:
+    async with httpx.AsyncClient(
+        timeout=timeout, headers={"User-Agent": SCRAPER_USER_AGENT}
+    ) as client:
         r = await client.get(url)
         r.raise_for_status()
         return r.text

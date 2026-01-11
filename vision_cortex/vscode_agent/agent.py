@@ -5,12 +5,13 @@ Capabilities:
 - Accept chat commands to trigger background system builds using Auto-Builder pipeline.
 - Run builds in parallel with bounded worker pool.
 """
+
 from __future__ import annotations
 
 import logging
 import threading
 from concurrent.futures import Future, ThreadPoolExecutor
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from vision_cortex.comms.message_bus import MessageBus
 from vision_cortex.comms.pubsub_bridge import PubSubBridge
@@ -20,12 +21,20 @@ from vision_cortex.validators.safety import enforce_governance
 
 
 class VSCodeAgent:
-    def __init__(self, bus: MessageBus, memory: MemoryRegistry, max_workers: int = 4, governance_level: str = "HIGH") -> None:
+    def __init__(
+        self,
+        bus: MessageBus,
+        memory: MemoryRegistry,
+        max_workers: int = 4,
+        governance_level: str = "HIGH",
+    ) -> None:
         self.bus = bus
         self.memory = memory
         self.governance_level = enforce_governance(governance_level)
         self.bridge = PubSubBridge(bus=bus, memory=memory)
-        self.orchestrator = SystemBuildOrchestrator(bus=bus, memory=memory, governance_level=self.governance_level)
+        self.orchestrator = SystemBuildOrchestrator(
+            bus=bus, memory=memory, governance_level=self.governance_level
+        )
         self.pool = ThreadPoolExecutor(max_workers=max_workers)
         self.logger = logging.getLogger("vision_cortex.vscode_agent")
         self._futures: List[Future] = []
@@ -37,7 +46,9 @@ class VSCodeAgent:
 
     def run_background_build(self, seed: Dict[str, Any]) -> Future:
         seed = dict(seed)
-        seed["governance_level"] = enforce_governance(seed.get("governance_level", self.governance_level))
+        seed["governance_level"] = enforce_governance(
+            seed.get("governance_level", self.governance_level)
+        )
         future = self.pool.submit(self.orchestrator.run_build, seed)
         with self._lock:
             self._futures.append(future)
@@ -57,13 +68,23 @@ class VSCodeAgent:
         if kind == "build":
             self.run_background_build(payload)
         elif kind == "broadcast":
-            self.bridge.send_to_bus("chat_broadcast", {"thread_id": thread_id, "payload": payload}, governance_level=self.governance_level)
+            self.bridge.send_to_bus(
+                "chat_broadcast",
+                {"thread_id": thread_id, "payload": payload},
+                governance_level=self.governance_level,
+            )
         else:
-            self.bridge.send_to_threads({"thread_id": thread_id, "notice": f"Unknown command: {kind}"}, governance_level=self.governance_level)
+            self.bridge.send_to_threads(
+                {"thread_id": thread_id, "notice": f"Unknown command: {kind}"},
+                governance_level=self.governance_level,
+            )
 
     def _handle_build_completed(self, payload: Dict[str, Any]) -> None:
         summary = payload.get("summary", {})
-        self.bridge.send_to_threads({"event": "build_completed", "summary": summary}, governance_level=self.governance_level)
+        self.bridge.send_to_threads(
+            {"event": "build_completed", "summary": summary},
+            governance_level=self.governance_level,
+        )
 
     def pending_jobs(self) -> int:
         with self._lock:

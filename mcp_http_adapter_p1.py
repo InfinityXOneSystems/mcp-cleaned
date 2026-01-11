@@ -21,14 +21,15 @@ USAGE:
     app.include_router(router)
 """
 
-from typing import Dict, Any, List, Optional
-import os
+import hashlib
 import json
 import logging
-import hashlib
+import os
 import uuid
 from datetime import datetime
-from fastapi import APIRouter, Query, Header, HTTPException, Request
+from typing import Any, Dict, List, Optional
+
+from fastapi import APIRouter, Header, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
@@ -61,6 +62,7 @@ class ExecuteRequest(BaseModel):
 
 class ErrorResponse(BaseModel):
     """P1: Structured error contract"""
+
     success: bool = False
     code: str
     reason: str
@@ -71,6 +73,7 @@ class ErrorResponse(BaseModel):
 
 class ExecuteResponse(BaseModel):
     """P1: Structured success response"""
+
     success: bool = True
     request_id: str
     tool_name: str
@@ -82,6 +85,7 @@ class ExecuteResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     """P1: Deterministic health contract"""
+
     status: str
     timestamp: str
     components: Dict[str, Any]
@@ -95,17 +99,20 @@ def _load_tools_from_main() -> List[Dict[str, Any]]:
     """Load tools from main_extended with governance"""
     try:
         from main_extended import TOOLS, check_governance
+
         out = []
         for t in TOOLS:
             name = getattr(t, "name", None)
             if not name:
                 continue
-            out.append({
-                "name": name,
-                "description": getattr(t, "description", ""),
-                "inputSchema": getattr(t, "inputSchema", {}),
-                "governance": check_governance(name),
-            })
+            out.append(
+                {
+                    "name": name,
+                    "description": getattr(t, "description", ""),
+                    "inputSchema": getattr(t, "inputSchema", {}),
+                    "governance": check_governance(name),
+                }
+            )
         return out
     except Exception as e:
         logger.error(f"Failed to load tools: {e}")
@@ -116,20 +123,22 @@ def _build_registry() -> Dict[str, Dict[str, Any]]:
     """Build registry with governance metadata"""
     tools = _load_tools_from_main()
     reg: Dict[str, Dict[str, Any]] = {}
-    
+
     for t in tools:
         name = t.get("name")
         schema = t.get("inputSchema") or {}
         params = []
-        
+
         for k, v in (schema.get("properties") or {}).items():
-            params.append({
-                "name": k,
-                "type": v.get("type", "string"),
-                "description": v.get("description", ""),
-                "required": k in (schema.get("required") or []),
-            })
-        
+            params.append(
+                {
+                    "name": k,
+                    "type": v.get("type", "string"),
+                    "description": v.get("description", ""),
+                    "required": k in (schema.get("required") or []),
+                }
+            )
+
         gov = t.get("governance") or {"level": "MEDIUM", "allowed": True}
         reg[name] = {
             "name": name,
@@ -138,7 +147,7 @@ def _build_registry() -> Dict[str, Dict[str, Any]]:
             "governance_level": gov.get("level", "MEDIUM"),
             "approval_required": gov.get("level") == "CRITICAL",
         }
-    
+
     return reg
 
 
@@ -162,10 +171,10 @@ def _enforce_auth(x_mcp_key: Optional[str], correlation_id: str) -> None:
                 "reason": "Execution disabled by kill switch",
                 "correlationId": correlation_id,
                 "timestamp": datetime.utcnow().isoformat() + "Z",
-                "guidance": "Contact operator to restore service"
-            }
+                "guidance": "Contact operator to restore service",
+            },
         )
-    
+
     if not x_mcp_key:
         raise HTTPException(
             status_code=401,
@@ -175,10 +184,10 @@ def _enforce_auth(x_mcp_key: Optional[str], correlation_id: str) -> None:
                 "reason": "X-MCP-KEY header required",
                 "correlationId": correlation_id,
                 "timestamp": datetime.utcnow().isoformat() + "Z",
-                "guidance": "Include X-MCP-KEY header with valid key"
-            }
+                "guidance": "Include X-MCP-KEY header with valid key",
+            },
         )
-    
+
     if x_mcp_key != MCP_API_KEY:
         logger.warning(f"P1: Auth failed for correlation_id={correlation_id}")
         raise HTTPException(
@@ -189,15 +198,17 @@ def _enforce_auth(x_mcp_key: Optional[str], correlation_id: str) -> None:
                 "reason": "X-MCP-KEY header invalid",
                 "correlationId": correlation_id,
                 "timestamp": datetime.utcnow().isoformat() + "Z",
-                "guidance": "Verify key and retry"
-            }
+                "guidance": "Verify key and retry",
+            },
         )
 
 
 def _enforce_demo_mode(req: ExecuteRequest, correlation_id: str) -> ExecuteRequest:
     """P1: Immutable demo mode enforcement"""
     if DEMO_MODE:
-        logger.info(f"P1: Demo mode override for {req.tool_name}, correlation_id={correlation_id}")
+        logger.info(
+            f"P1: Demo mode override for {req.tool_name}, correlation_id={correlation_id}"
+        )
         req.dry_run = True
     return req
 
@@ -206,18 +217,19 @@ def _enforce_demo_mode(req: ExecuteRequest, correlation_id: str) -> ExecuteReque
 async def _invoke_tool(tool_name: str, arguments: Dict[str, Any]) -> Any:
     """Invoke tool via main_extended server"""
     try:
-        from main_extended import server
         import asyncio
-        
+
+        from main_extended import server
+
         fn = getattr(server, "call_tool", None)
         if fn is None:
             raise RuntimeError("server.call_tool not available")
-        
+
         if asyncio.iscoroutinefunction(fn):
             return await fn(tool_name, arguments)
         else:
             return await asyncio.to_thread(fn, tool_name, arguments)
-    except Exception as e:
+    except Exception:
         logger.exception(f"Tool execution failed: {tool_name}")
         raise
 
@@ -234,50 +246,57 @@ async def health():
         "registry": {"count": len(REGISTRY), "hash": REGISTRY_HASH},
         "firestore": "unknown",  # Updated by gateway
     }
-    
+
     # Test Firestore connectivity
     try:
         from google.cloud import firestore
-        client = firestore.Client(project=os.environ.get("FIRESTORE_PROJECT", "infinity-x-one-systems"))
+
+        client = firestore.Client(
+            project=os.environ.get("FIRESTORE_PROJECT", "infinity-x-one-systems")
+        )
         # Quick collection reference test (no actual read)
         _ = client.collection("mcp_memory")
         components["firestore"] = "healthy"
     except Exception as e:
         components["firestore"] = f"degraded: {str(e)[:50]}"
         logger.warning(f"P1: Firestore health check failed: {e}")
-    
+
     return HealthResponse(
         status="healthy" if components["firestore"] != "degraded" else "degraded",
         timestamp=datetime.utcnow().isoformat() + "Z",
         components=components,
         registry_hash=REGISTRY_HASH,
         demo_mode=DEMO_MODE,
-        kill_switch=KILL_SWITCH
+        kill_switch=KILL_SWITCH,
     )
 
 
 @router.get("/tools")
 async def list_tools():
     """List all available tools"""
-    return JSONResponse(content={
-        "tools": list(REGISTRY.values()),
-        "count": len(REGISTRY),
-        "registry_hash": REGISTRY_HASH,
-        "demo_mode": DEMO_MODE
-    })
+    return JSONResponse(
+        content={
+            "tools": list(REGISTRY.values()),
+            "count": len(REGISTRY),
+            "registry_hash": REGISTRY_HASH,
+            "demo_mode": DEMO_MODE,
+        }
+    )
 
 
 @router.get("/stats")
 async def stats():
     """Adapter statistics"""
-    return JSONResponse(content={
-        "tool_count": len(REGISTRY),
-        "registry_hash": REGISTRY_HASH,
-        "demo_mode": DEMO_MODE,
-        "kill_switch": KILL_SWITCH,
-        "read_only_default": READ_ONLY_DEFAULT,
-        "timestamp": datetime.utcnow().isoformat() + "Z"
-    })
+    return JSONResponse(
+        content={
+            "tool_count": len(REGISTRY),
+            "registry_hash": REGISTRY_HASH,
+            "demo_mode": DEMO_MODE,
+            "kill_switch": KILL_SWITCH,
+            "read_only_default": READ_ONLY_DEFAULT,
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+        }
+    )
 
 
 @router.post("/execute", response_model=ExecuteResponse)
@@ -285,17 +304,17 @@ async def execute(
     req: ExecuteRequest,
     request: Request,
     x_mcp_key: Optional[str] = Header(None),
-    x_mcp_readonly: Optional[bool] = Header(None)
+    x_mcp_readonly: Optional[bool] = Header(None),
 ):
     """P1: Execute tool with auth, demo mode, and structured errors"""
     correlation_id = str(uuid.uuid4())
-    
+
     # P1: Auth enforcement
     _enforce_auth(x_mcp_key, correlation_id)
-    
+
     # P1: Demo mode enforcement
     req = _enforce_demo_mode(req, correlation_id)
-    
+
     # Validate tool exists
     tool = REGISTRY.get(req.tool_name)
     if not tool:
@@ -307,37 +326,44 @@ async def execute(
                 "reason": f"Tool '{req.tool_name}' not found",
                 "correlationId": correlation_id,
                 "timestamp": datetime.utcnow().isoformat() + "Z",
-                "guidance": "Use /mcp/tools to list available tools"
-            }
+                "guidance": "Use /mcp/tools to list available tools",
+            },
         )
-    
+
     gov_level = tool.get("governance_level", "MEDIUM")
-    
+
     # P1: Audit log
-    logger.info(f"P1: Execute tool={req.tool_name} dry_run={req.dry_run} "
-                f"gov={gov_level} demo={DEMO_MODE} correlation_id={correlation_id}")
-    
+    logger.info(
+        f"P1: Execute tool={req.tool_name} dry_run={req.dry_run} "
+        f"gov={gov_level} demo={DEMO_MODE} correlation_id={correlation_id}"
+    )
+
     # Dry-run: return schema without executing
     if req.dry_run:
         return ExecuteResponse(
             success=True,
             request_id=req.request_id or correlation_id,
             tool_name=req.tool_name,
-            result={"schema": tool.get("parameters", []), "governance_level": gov_level},
+            result={
+                "schema": tool.get("parameters", []),
+                "governance_level": gov_level,
+            },
             execution_time_ms=0,
             governance_level=gov_level,
-            demo_mode=DEMO_MODE
+            demo_mode=DEMO_MODE,
         )
-    
+
     # P1: Execute with timing
     start = datetime.utcnow()
     try:
         result = await _invoke_tool(req.tool_name, req.arguments)
         elapsed = (datetime.utcnow() - start).total_seconds() * 1000.0
-        
-        logger.info(f"P1: Success tool={req.tool_name} elapsed={elapsed:.1f}ms "
-                    f"correlation_id={correlation_id}")
-        
+
+        logger.info(
+            f"P1: Success tool={req.tool_name} elapsed={elapsed:.1f}ms "
+            f"correlation_id={correlation_id}"
+        )
+
         return ExecuteResponse(
             success=True,
             request_id=req.request_id or correlation_id,
@@ -345,14 +371,16 @@ async def execute(
             result=result,
             execution_time_ms=elapsed,
             governance_level=gov_level,
-            demo_mode=DEMO_MODE
+            demo_mode=DEMO_MODE,
         )
-    
+
     except Exception as e:
         elapsed = (datetime.utcnow() - start).total_seconds() * 1000.0
-        logger.error(f"P1: Failed tool={req.tool_name} elapsed={elapsed:.1f}ms "
-                     f"error={str(e)[:100]} correlation_id={correlation_id}")
-        
+        logger.error(
+            f"P1: Failed tool={req.tool_name} elapsed={elapsed:.1f}ms "
+            f"error={str(e)[:100]} correlation_id={correlation_id}"
+        )
+
         raise HTTPException(
             status_code=500,
             detail={
@@ -361,8 +389,8 @@ async def execute(
                 "reason": str(e),
                 "correlationId": correlation_id,
                 "timestamp": datetime.utcnow().isoformat() + "Z",
-                "guidance": "Check tool arguments and retry"
-            }
+                "guidance": "Check tool arguments and retry",
+            },
         )
 
 
@@ -373,7 +401,7 @@ async def execute_named(
     request: Request,
     dry_run: bool = Query(False),
     x_mcp_key: Optional[str] = Header(None),
-    x_mcp_readonly: Optional[bool] = Header(None)
+    x_mcp_readonly: Optional[bool] = Header(None),
 ):
     """P1: Execute tool by name (convenience endpoint)"""
     req = ExecuteRequest(tool_name=tool_name, arguments=arguments, dry_run=dry_run)

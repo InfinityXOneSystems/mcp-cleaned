@@ -1,11 +1,12 @@
 """
 Task queue orchestration with Celery and Redis
 """
+
+from typing import Any, Dict, Optional
+
 from celery import Celery, Task
 from celery.utils.log import get_task_logger
-from typing import Optional, Dict, Any
-import os
-import json
+
 from .security import get_security_manager
 
 logger = get_task_logger(__name__)
@@ -13,24 +14,27 @@ logger = get_task_logger(__name__)
 
 class AutonomyTask(Task):
     """Base task class with custom error handling"""
+
     autoretry_for = (Exception,)
     retry_kwargs = {"max_retries": 3}
     retry_backoff = True
 
 
-def create_task_queue(broker_url: Optional[str] = None, backend_url: Optional[str] = None) -> Celery:
+def create_task_queue(
+    broker_url: Optional[str] = None, backend_url: Optional[str] = None
+) -> Celery:
     """Create and configure Celery app"""
     security = get_security_manager()
-    
+
     broker = broker_url or security.get_celery_broker()
     backend = backend_url or security.get_celery_backend()
-    
+
     app = Celery(
         "autonomy_stack",
         broker=broker,
         backend=backend,
     )
-    
+
     app.conf.update(
         task_serializer="json",
         accept_content=["json"],
@@ -44,7 +48,7 @@ def create_task_queue(broker_url: Optional[str] = None, backend_url: Optional[st
         broker_connection_retry_on_startup=True,
         task_base=AutonomyTask,
     )
-    
+
     logger.info(f"✓ Celery app created: {broker}")
     return app
 
@@ -55,18 +59,15 @@ celery_app = create_task_queue()
 
 @celery_app.task(bind=True)
 def execute_agent_task(
-    self,
-    agent_role: str,
-    objective: str,
-    context: Optional[Dict[str, Any]] = None
+    self, agent_role: str, objective: str, context: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """Execute agent task via Celery"""
     try:
         from .agent_factory import AgentFactory
-        
+
         factory = AgentFactory()
-        agent = factory.create_agent(agent_role)
-        
+        factory.create_agent(agent_role)
+
         # This is a placeholder - actual execution depends on agent implementation
         result = {
             "task_id": self.request.id,
@@ -76,7 +77,7 @@ def execute_agent_task(
             "result": f"Executed task: {objective}",
             "confidence": 0.85,
         }
-        
+
         return result
     except Exception as e:
         logger.error(f"Task failed: {e}")
@@ -89,19 +90,18 @@ def pipeline_execution(
     pipeline_name: str,
     agents: list,
     objectives: list,
-    context: Optional[Dict[str, Any]] = None
+    context: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Execute multi-agent pipeline"""
     try:
         results = []
-        
+
         for agent_role, objective in zip(agents, objectives):
             result = execute_agent_task.apply_async(
-                args=(agent_role, objective),
-                kwargs={"context": context}
+                args=(agent_role, objective), kwargs={"context": context}
             )
             results.append(result)
-        
+
         return {
             "pipeline_name": pipeline_name,
             "task_ids": [r.id for r in results],
@@ -125,7 +125,7 @@ def cleanup_old_results(days: int = 7) -> Dict[str, Any]:
 
 class TaskQueue:
     """High-level task queue interface"""
-    
+
     def __init__(self, celery_app: Optional[Celery] = None):
         """Initialize task queue"""
         self.app = celery_app or celery_app
@@ -137,7 +137,7 @@ class TaskQueue:
         objective: str,
         context: Optional[Dict[str, Any]] = None,
         priority: int = 5,
-        timeout: int = 300
+        timeout: int = 300,
     ) -> str:
         """Submit a task for async execution"""
         try:
@@ -183,7 +183,7 @@ class TaskQueue:
         pipeline_name: str,
         agents: list,
         objectives: list,
-        context: Optional[Dict[str, Any]] = None
+        context: Optional[Dict[str, Any]] = None,
     ) -> str:
         """Execute a multi-agent pipeline"""
         try:

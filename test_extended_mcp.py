@@ -1,6 +1,8 @@
 """Test extended MCP server"""
+
 import sys
-sys.path.insert(0, '.')
+
+sys.path.insert(0, ".")
 
 print("Loading extended MCP server...")
 from main_extended import server

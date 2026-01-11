@@ -1,7 +1,8 @@
 """Safety and governance checks for Vision Cortex."""
+
 from __future__ import annotations
 
-from typing import Dict, Any
+from typing import Any, Dict
 
 GOVERNANCE_LEVELS = ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
 

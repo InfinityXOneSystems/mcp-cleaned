@@ -2,32 +2,32 @@
 Omni Gateway - FastAPI wrapper for main_extended.py MCP server
 Exposes 59 Omni Hub tools via HTTP + serves Intelligence Cockpit UI
 """
-from fastapi import FastAPI, Request, HTTPException, Header
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-import httpx
+
+import asyncio
+import json
+import logging
 import os
 import sys
-import json
-import asyncio
-import logging
 import time
-from typing import Optional, Dict, Any, List
-from google.api_core.exceptions import GoogleAPIError
+from pathlib import Path
+from typing import Any, Dict, Optional
+
+import httpx
+from fastapi import FastAPI, Header, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.staticfiles import StaticFiles
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from pathlib import Path
-
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import PlainTextResponse
+from pydantic import BaseModel
 
 # Optional Google client imports (fail gracefully if libs missing)
 try:
+    from google.cloud import firestore  # type: ignore
     from google.cloud import secretmanager  # type: ignore
-    from google.cloud import firestore      # type: ignore
+
     _HAS_GCP = True
 except Exception:
     _HAS_GCP = False
@@ -52,31 +52,49 @@ except Exception:
 try:
     # local import; gateway_env is added to the repo to centralize env handling
     from gateway_env import init_gateway_env
+
     init_gateway_env()
 except Exception:
     # If the loader is not present or fails, continue with existing envs
-    logger.debug("gateway_env not loaded or init failed; continuing with existing environment variables")
+    logger.debug(
+        "gateway_env not loaded or init failed; continuing with existing environment variables"
+    )
 
 # Import Omni Hub MCP server (optional - graceful degradation)
 sys.path.insert(0, os.path.dirname(__file__))
 try:
-    from main_extended import server as mcp_server, check_governance
+    from main_extended import check_governance
+    from main_extended import server as mcp_server
+
     MCP_AVAILABLE = True
     logger.info("✓ MCP Server loaded successfully")
 except Exception as e:
     logger.warning(f"⚠ MCP Server unavailable: {e}")
     MCP_AVAILABLE = False
+
     # Mock MCP server for graceful degradation
     class MockMCPServer:
-        def list_tools(self): return []
-        async def call_tool(self, name, args): return [type('obj', (), {'text': json.dumps({"error": "MCP unavailable"})})]
+        def list_tools(self):
+            return []
+
+        async def call_tool(self, name, args):
+            return [type("obj", (), {"text": json.dumps({"error": "MCP unavailable"})})]
+
     mcp_server = MockMCPServer()
-    def check_governance(tool_name): return {"level": "MEDIUM", "allowed": True, "reason": "Mock", "rate_limited": False}
+
+    def check_governance(tool_name):
+        return {
+            "level": "MEDIUM",
+            "allowed": True,
+            "reason": "Mock",
+            "rate_limited": False,
+        }
+
 
 app = FastAPI(
     title="Infinity XOS Omni Gateway",
     description="Intelligence Cockpit + 59 MCP Tools + Autonomous Prompt System",
-    version="3.0"
+    version="3.0",
 )
 
 app.add_middleware(
@@ -90,7 +108,7 @@ app.add_middleware(
 # ===== CONFIGURATION =====
 FRONTEND_SERVICE_URL = os.environ.get(
     "FRONTEND_SERVICE_URL",
-    "https://frontend-service-0a277877-896380409704.us-east1.run.app"
+    "https://frontend-service-0a277877-896380409704.us-east1.run.app",
 )
 
 # Firestore configuration
@@ -112,22 +130,31 @@ PROTOCOL_110 = {
         "Autonomous rehydrate on boot",
         "Store critical runtime memory in Firestore",
         "Governance-first execution",
-        "Full launch checklist verification"
+        "Full launch checklist verification",
     ],
     "checklist": [
         {"id": "c1", "name": "Credentials rotated", "status": "pending"},
-        {"id": "c2", "name": "Artifact Registry present (us-east1)", "status": "pending"},
+        {
+            "id": "c2",
+            "name": "Artifact Registry present (us-east1)",
+            "status": "pending",
+        },
         {"id": "c3", "name": "Cloud Run deployed", "status": "pending"},
         {"id": "c4", "name": "Health endpoints responding", "status": "pending"},
         {"id": "c5", "name": "Frontend <-> Backend routing", "status": "pending"},
         {"id": "c6", "name": "Firestore memory writable", "status": "pending"},
-        {"id": "c7", "name": "Autonomous prompt library available", "status": "pending"}
-    ]
+        {
+            "id": "c7",
+            "name": "Autonomous prompt library available",
+            "status": "pending",
+        },
+    ],
 }
 
 # Firestore client (lazy)
 _firestore_client = None
 _firestore_available = False
+
 
 def _write_temp_sa_json(sa_bytes: bytes) -> str:
     """Write service account JSON bytes to a secure temp file and return its path."""
@@ -138,6 +165,7 @@ def _write_temp_sa_json(sa_bytes: bytes) -> str:
         os.close(fd)
     os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)  # 0o600
     return path
+
 
 def ensure_google_application_credentials_from_secret():
     """
@@ -156,10 +184,14 @@ def ensure_google_application_credentials_from_secret():
 
     secret_name = os.environ.get("GCP_SECRET_NAME")
     if not secret_name:
-        raise RuntimeError("GCP_SECRET_NAME must be set when USE_GCP_SECRET_MANAGER=true")
+        raise RuntimeError(
+            "GCP_SECRET_NAME must be set when USE_GCP_SECRET_MANAGER=true"
+        )
 
     if not _HAS_GCP:
-        raise RuntimeError("google-cloud-secretmanager library not available in environment")
+        raise RuntimeError(
+            "google-cloud-secretmanager library not available in environment"
+        )
 
     client = secretmanager.SecretManagerServiceClient()
     response = client.access_secret_version(request={"name": secret_name})
@@ -169,11 +201,14 @@ def ensure_google_application_credentials_from_secret():
     try:
         json.loads(payload.decode("utf-8"))
     except Exception as e:
-        raise RuntimeError("Secret payload is not valid JSON service account content") from e
+        raise RuntimeError(
+            "Secret payload is not valid JSON service account content"
+        ) from e
 
     sa_path = _write_temp_sa_json(payload)
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = sa_path
     return sa_path
+
 
 def init_firestore():
     """
@@ -189,10 +224,13 @@ def init_firestore():
         print(f"[omni_gateway] secret-manager warning: {e}")
 
     if not _HAS_GCP:
-        raise RuntimeError("google-cloud-firestore not available; install google-cloud-firestore")
+        raise RuntimeError(
+            "google-cloud-firestore not available; install google-cloud-firestore"
+        )
 
     # Create and return Firestore client (uses ADC or the SA file we wrote)
     return firestore.Client()
+
 
 async def load_110_protocol():
     """Write the 110% protocol into Firestore (rehydrate on boot)."""
@@ -203,7 +241,9 @@ async def load_110_protocol():
     try:
         doc_ref = client.collection(FIRESTORE_COLLECTION).document("protocol_110")
         doc_ref.set(PROTOCOL_110)
-        logger.info(f"110% Protocol written to Firestore/{FIRESTORE_COLLECTION}/protocol_110")
+        logger.info(
+            f"110% Protocol written to Firestore/{FIRESTORE_COLLECTION}/protocol_110"
+        )
         return True
     except Exception as e:
         logger.error(f"Failed to write protocol to Firestore: {e}")
@@ -225,6 +265,7 @@ async def on_startup_rehydrate():
 # Initialize default agents router (vision_cortex integration)
 try:
     from vision_cortex.integration.agent_integration import init_agents
+
     app.state.agent_router = init_agents()
     logger.info("Agent router initialized and attached to app.state.agent_router")
 except Exception as e:
@@ -233,6 +274,7 @@ except Exception as e:
 # Initialize headless team registry (lightweight on-demand agents)
 try:
     from vision_cortex.integration.headless_team import init_headless_team
+
     app.state.headless_team = init_headless_team()
     logger.info("Headless team initialized and attached to app.state.headless_team")
 except Exception as e:
@@ -241,6 +283,7 @@ except Exception as e:
 # Initialize Hybrid Orchestrator (router + factory)
 try:
     from vision_cortex.integration.hybrid_orchestrator import HybridOrchestrator
+
     app.state.hybrid_orch = HybridOrchestrator(use_celery=False)
     logger.info("HybridOrchestrator attached to app.state.hybrid_orch")
 except Exception as e:
@@ -248,17 +291,20 @@ except Exception as e:
 
 # Metrics endpoint (Prometheus) - optional
 try:
-    from vision_cortex.instrumentation.observability import PROM_REGISTRY
-    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+    from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
-    @app.get('/metrics')
+    from vision_cortex.instrumentation.observability import PROM_REGISTRY
+
+    @app.get("/metrics")
     async def metrics_endpoint():
         if not PROM_REGISTRY:
-            return PlainTextResponse('')
+            return PlainTextResponse("")
         data = generate_latest(PROM_REGISTRY)
         return PlainTextResponse(content=data, media_type=CONTENT_TYPE_LATEST)
+
 except Exception:
-    logger.debug('Prometheus client not available; /metrics endpoint disabled')
+    logger.debug("Prometheus client not available; /metrics endpoint disabled")
+
 
 # ===== COCKPIT UI =====
 @app.get("/", response_class=HTMLResponse)
@@ -271,9 +317,9 @@ async def serve_cockpit():
     except Exception as e:
         logger.error(f"Failed to load cockpit: {e}")
         return HTMLResponse(
-            content=f"<h1>Cockpit Unavailable</h1><p>{str(e)}</p>",
-            status_code=500
+            content=f"<h1>Cockpit Unavailable</h1><p>{str(e)}</p>", status_code=500
         )
+
 
 # ===== AUTONOMOUS PROMPTS API =====
 @app.get("/api/prompts")
@@ -283,37 +329,35 @@ async def get_autonomous_prompts():
         prompts_path = os.path.join(os.path.dirname(__file__), "AUTONOMOUS_PROMPTS.md")
         with open(prompts_path, "r", encoding="utf-8") as f:
             content = f.read()
-        
+
         # Parse prompts (simple parsing - can be enhanced)
         prompts = []
         lines = content.split("\n")
         current_prompt = None
-        
+
         for line in lines:
             if line.startswith("### "):
                 if current_prompt:
                     prompts.append(current_prompt)
                 current_prompt = {
                     "name": line.replace("### ", "").strip(),
-                    "content": ""
+                    "content": "",
                 }
             elif current_prompt and line.strip():
                 current_prompt["content"] += line + "\n"
-        
+
         if current_prompt:
             prompts.append(current_prompt)
-        
-        return JSONResponse(content={
-            "success": True,
-            "count": len(prompts),
-            "prompts": prompts
-        })
+
+        return JSONResponse(
+            content={"success": True, "count": len(prompts), "prompts": prompts}
+        )
     except Exception as e:
         logger.error(f"Failed to load prompts: {e}")
         return JSONResponse(
-            status_code=500,
-            content={"success": False, "error": str(e)}
+            status_code=500, content={"success": False, "error": str(e)}
         )
+
 
 @app.post("/api/prompts/execute")
 async def execute_prompt(request: Request):
@@ -321,24 +365,26 @@ async def execute_prompt(request: Request):
     try:
         data = await request.json()
         prompt_name = data.get("prompt_name")
-        context = data.get("context", {})
-        
+        data.get("context", {})
+
         # Log execution
         logger.info(f"Executing autonomous prompt: {prompt_name}")
-        
+
         # This would integrate with ChatGPT MCP or other execution engine
-        return JSONResponse(content={
-            "success": True,
-            "prompt_name": prompt_name,
-            "status": "queued",
-            "message": f"Prompt '{prompt_name}' queued for execution"
-        })
+        return JSONResponse(
+            content={
+                "success": True,
+                "prompt_name": prompt_name,
+                "status": "queued",
+                "message": f"Prompt '{prompt_name}' queued for execution",
+            }
+        )
     except Exception as e:
         logger.error(f"Prompt execution failed: {e}")
         return JSONResponse(
-            status_code=500,
-            content={"success": False, "error": str(e)}
+            status_code=500, content={"success": False, "error": str(e)}
         )
+
 
 # ===== MCP TOOLS API =====
 @app.get("/api/tools")
@@ -346,37 +392,38 @@ async def list_tools():
     """List all available MCP tools"""
     try:
         if not MCP_AVAILABLE:
-            return JSONResponse(content={
-                "success": False,
-                "error": "MCP Server not available",
-                "count": 0,
-                "tools": []
-            })
-        
+            return JSONResponse(
+                content={
+                    "success": False,
+                    "error": "MCP Server not available",
+                    "count": 0,
+                    "tools": [],
+                }
+            )
+
         tools = [
             {
                 "name": tool.name,
                 "description": tool.description,
-                "governance": check_governance(tool.name)
+                "governance": check_governance(tool.name),
             }
             for tool in mcp_server.list_tools()
         ]
-        
-        return JSONResponse(content={
-            "success": True,
-            "count": len(tools),
-            "tools": tools
-        })
+
+        return JSONResponse(
+            content={"success": True, "count": len(tools), "tools": tools}
+        )
     except Exception as e:
         logger.error(f"Failed to list tools: {e}")
         return JSONResponse(
-            status_code=500,
-            content={"success": False, "error": str(e)}
+            status_code=500, content={"success": False, "error": str(e)}
         )
+
 
 class ToolRequest(BaseModel):
     tool_name: str
     arguments: Dict[str, Any]
+
 
 @app.post("/api/tools/execute")
 async def execute_tool(tool_req: ToolRequest):
@@ -390,24 +437,26 @@ async def execute_tool(tool_req: ToolRequest):
                 content={
                     "success": False,
                     "error": "Rate limit exceeded or operation blocked",
-                    "governance": gov_check
-                }
+                    "governance": gov_check,
+                },
             )
-        
+
         # Execute tool via MCP server
         result = await mcp_server.call_tool(tool_req.tool_name, tool_req.arguments)
-        
-        return JSONResponse(content={
-            "success": True,
-            "tool": tool_req.tool_name,
-            "result": str(result[0].text) if result else None
-        })
+
+        return JSONResponse(
+            content={
+                "success": True,
+                "tool": tool_req.tool_name,
+                "result": str(result[0].text) if result else None,
+            }
+        )
     except Exception as e:
         logger.error(f"Tool execution failed: {e}")
         return JSONResponse(
-            status_code=500,
-            content={"success": False, "error": str(e)}
+            status_code=500, content={"success": False, "error": str(e)}
         )
+
 
 # ===== CLI INTEGRATION =====
 @app.post("/api/cli/execute")
@@ -416,31 +465,36 @@ async def execute_cli_command(request: Request):
     try:
         data = await request.json()
         command = data.get("command")
-        
+
         # Check governance for critical commands
-        if any(dangerous in command.lower() for dangerous in ["rm -rf", "del /f", "format", "shutdown"]):
+        if any(
+            dangerous in command.lower()
+            for dangerous in ["rm -rf", "del /f", "format", "shutdown"]
+        ):
             return JSONResponse(
                 status_code=403,
                 content={
                     "success": False,
-                    "error": "Command blocked by governance - critical operation"
-                }
+                    "error": "Command blocked by governance - critical operation",
+                },
             )
-        
+
         # Execute via orchestrator tool
         result = await mcp_server.call_tool("execute", {"command": command})
-        
-        return JSONResponse(content={
-            "success": True,
-            "command": command,
-            "output": str(result[0].text) if result else None
-        })
+
+        return JSONResponse(
+            content={
+                "success": True,
+                "command": command,
+                "output": str(result[0].text) if result else None,
+            }
+        )
     except Exception as e:
         logger.error(f"CLI execution failed: {e}")
         return JSONResponse(
-            status_code=500,
-            content={"success": False, "error": str(e)}
+            status_code=500, content={"success": False, "error": str(e)}
         )
+
 
 # ===== SYSTEM STATUS =====
 @app.get("/api/status")
@@ -448,27 +502,29 @@ async def get_system_status():
     """Get system status and metrics"""
     try:
         tools_count = len(mcp_server.list_tools()) if MCP_AVAILABLE else 0
-        
-        return JSONResponse(content={
-            "success": True,
-            "status": "operational",
-            "components": {
-                "omni_hub": "active" if MCP_AVAILABLE else "degraded",
-                "mcp_tools": tools_count,
-                "cockpit": "online",
-                "frontend_service": FRONTEND_SERVICE_URL,
-                "autonomous_prompts": "loaded",
-                "cli_integration": "enabled"
-            },
-            "governance": "enforced",
-            "agents_initialized": bool(getattr(app.state, "agent_router", None))
-        })
+
+        return JSONResponse(
+            content={
+                "success": True,
+                "status": "operational",
+                "components": {
+                    "omni_hub": "active" if MCP_AVAILABLE else "degraded",
+                    "mcp_tools": tools_count,
+                    "cockpit": "online",
+                    "frontend_service": FRONTEND_SERVICE_URL,
+                    "autonomous_prompts": "loaded",
+                    "cli_integration": "enabled",
+                },
+                "governance": "enforced",
+                "agents_initialized": bool(getattr(app.state, "agent_router", None)),
+            }
+        )
     except Exception as e:
         logger.error(f"Status check failed: {e}")
         return JSONResponse(
-            status_code=500,
-            content={"success": False, "error": str(e)}
+            status_code=500, content={"success": False, "error": str(e)}
         )
+
 
 # ===== FRONTEND SERVICE PROXY =====
 @app.get("/frontend")
@@ -482,8 +538,9 @@ async def frontend_proxy():
         logger.error(f"Frontend proxy failed: {e}")
         return HTMLResponse(
             content=f"<h1>Frontend Service Unavailable</h1><p>{str(e)}</p>",
-            status_code=503
+            status_code=503,
         )
+
 
 @app.get("/frontend/api/{path:path}")
 async def frontend_api_proxy(path: str, request: Request):
@@ -495,14 +552,13 @@ async def frontend_api_proxy(path: str, request: Request):
                 method=request.method,
                 url=url,
                 headers=dict(request.headers),
-                timeout=30.0
+                timeout=30.0,
             )
             return JSONResponse(content=response.json())
     except Exception as e:
         logger.error(f"Frontend API proxy failed: {e}")
         return JSONResponse(
-            status_code=503,
-            content={"error": f"Frontend service error: {str(e)}"}
+            status_code=503, content={"error": f"Frontend service error: {str(e)}"}
         )
 
     @app.post("/api/chat")
@@ -516,26 +572,42 @@ async def frontend_api_proxy(path: str, request: Request):
             body = await request.json()
             intent = body.get("intent")
             if not intent:
-                return JSONResponse(status_code=400, content={"success": False, "error": "Missing 'intent' in request body"})
+                return JSONResponse(
+                    status_code=400,
+                    content={
+                        "success": False,
+                        "error": "Missing 'intent' in request body",
+                    },
+                )
 
             session_id = body.get("session_id") or str(int(time.time() * 1000))
-            ctx = AgentContext(session_id=session_id, task_id=f"chat_{session_id}", governance_level=body.get("governance", "LOW"))
+            ctx = AgentContext(
+                session_id=session_id,
+                task_id=f"chat_{session_id}",
+                governance_level=body.get("governance", "LOW"),
+            )
 
             router = getattr(app.state, "agent_router", None)
             if not router:
-                return JSONResponse(status_code=503, content={"success": False, "error": "Agent router not initialized"})
+                return JSONResponse(
+                    status_code=503,
+                    content={"success": False, "error": "Agent router not initialized"},
+                )
 
             payload = {"context": ctx, "data": body.get("data", {})}
 
             # dispatch may be sync or async depending on agent implementations
             result = router.dispatch(intent, payload)
 
-            return JSONResponse(content={"success": True, "intent": intent, "result": result})
+            return JSONResponse(
+                content={"success": True, "intent": intent, "result": result}
+            )
 
         except Exception as e:
             logger.exception("Chat dispatch failed")
-            return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
-
+            return JSONResponse(
+                status_code=500, content={"success": False, "error": str(e)}
+            )
 
     @app.post("/api/agents/enqueue")
     async def enqueue_agent_task(request: Request):
@@ -549,16 +621,32 @@ async def frontend_api_proxy(path: str, request: Request):
             objective = body.get("objective")
             context = body.get("context")
             if not role or not objective:
-                return JSONResponse(status_code=400, content={"success": False, "error": "Missing role or objective"})
+                return JSONResponse(
+                    status_code=400,
+                    content={"success": False, "error": "Missing role or objective"},
+                )
 
             orch = getattr(app.state, "hybrid_orch", None)
             if not orch:
-                return JSONResponse(status_code=503, content={"success": False, "error": "HybridOrchestrator not available"})
+                return JSONResponse(
+                    status_code=503,
+                    content={
+                        "success": False,
+                        "error": "HybridOrchestrator not available",
+                    },
+                )
 
             # Governance check for high-sensitivity operations
             gov = check_governance(role)
             if not gov.get("allowed", True):
-                return JSONResponse(status_code=403, content={"success": False, "error": "Operation blocked by governance", "governance": gov})
+                return JSONResponse(
+                    status_code=403,
+                    content={
+                        "success": False,
+                        "error": "Operation blocked by governance",
+                        "governance": gov,
+                    },
+                )
 
             # API key simple auth for enqueueing (for higher trust operations)
             required_key = os.environ.get("ADMIN_API_KEY")
@@ -573,23 +661,40 @@ async def frontend_api_proxy(path: str, request: Request):
                     if token:
                         try:
                             from vision_cortex.auth.jwt_auth import verify_jwt
+
                             payload = verify_jwt(token)
                             if not payload:
-                                return JSONResponse(status_code=401, content={"success": False, "error": "Invalid JWT token"})
+                                return JSONResponse(
+                                    status_code=401,
+                                    content={
+                                        "success": False,
+                                        "error": "Invalid JWT token",
+                                    },
+                                )
                         except Exception:
-                            return JSONResponse(status_code=401, content={"success": False, "error": "Invalid JWT token"})
+                            return JSONResponse(
+                                status_code=401,
+                                content={
+                                    "success": False,
+                                    "error": "Invalid JWT token",
+                                },
+                            )
                     else:
-                        return JSONResponse(status_code=401, content={"success": False, "error": "Invalid API key"})
+                        return JSONResponse(
+                            status_code=401,
+                            content={"success": False, "error": "Invalid API key"},
+                        )
 
             # enqueue (runs in-process unless USE_CELERY=true)
             result = await orch.enqueue_long(role, objective, context)
             return JSONResponse(content={"success": True, "task": result})
         except Exception as e:
             logger.exception("Enqueue failed")
-            return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+            return JSONResponse(
+                status_code=500, content={"success": False, "error": str(e)}
+            )
 
-
-    @app.get('/api/agents/headless_team')
+    @app.get("/api/agents/headless_team")
     async def list_headless_team():
         """List available headless agents and their capabilities"""
         try:
@@ -597,9 +702,10 @@ async def frontend_api_proxy(path: str, request: Request):
             data = [t.__dict__ for t in team]
             return JSONResponse(content={"success": True, "team": data})
         except Exception as e:
-            logger.exception('List headless team failed')
-            return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
-
+            logger.exception("List headless team failed")
+            return JSONResponse(
+                status_code=500, content={"success": False, "error": str(e)}
+            )
 
     class HeadlessRequest(BaseModel):
         agent_name: str
@@ -609,8 +715,7 @@ async def frontend_api_proxy(path: str, request: Request):
         no_robots: Optional[bool] = False
         enqueue: Optional[bool] = False
 
-
-    @app.post('/api/agents/headless_team/execute')
+    @app.post("/api/agents/headless_team/execute")
     async def execute_headless_agent(req: HeadlessRequest, request: Request):
         """Execute a headless agent synchronously or enqueue via HybridOrchestrator"""
         try:
@@ -618,47 +723,82 @@ async def frontend_api_proxy(path: str, request: Request):
             team = getattr(app.state, "headless_team", [])
             names = [t.name for t in team]
             if req.agent_name not in names:
-                return JSONResponse(status_code=404, content={"success": False, "error": "agent not found"})
+                return JSONResponse(
+                    status_code=404,
+                    content={"success": False, "error": "agent not found"},
+                )
 
             # Build payload and context
-            ctx = AgentContext(session_id=str(int(time.time() * 1000)), task_id=f"headless_{req.agent_name}", governance_level="LOW")
+            ctx = AgentContext(
+                session_id=str(int(time.time() * 1000)),
+                task_id=f"headless_{req.agent_name}",
+                governance_level="LOW",
+            )
             # set dev_ok tag if caller provided header X-DEV-OK or env var
-            dev_ok = request.headers.get("X-DEV-OK", "").lower() in ("1", "true", "yes") or os.environ.get("ALLOW_NO_ROBOTS", "") == "1"
+            dev_ok = (
+                request.headers.get("X-DEV-OK", "").lower() in ("1", "true", "yes")
+                or os.environ.get("ALLOW_NO_ROBOTS", "") == "1"
+            )
             ctx.tags["dev_ok"] = dev_ok
 
-            payload = {"url": req.url, "timeout": req.timeout, "no_robots": req.no_robots}
+            payload = {
+                "url": req.url,
+                "timeout": req.timeout,
+                "no_robots": req.no_robots,
+            }
 
             # If enqueue requested, use HybridOrchestrator
             if req.enqueue:
                 orch = getattr(app.state, "hybrid_orch", None)
                 if not orch:
-                    return JSONResponse(status_code=503, content={"success": False, "error": "HybridOrchestrator not available"})
-                result = await orch.enqueue_long("headless", f"fetch {req.url}", {"agent_name": req.agent_name, "payload": payload, "context": ctx.__dict__})
+                    return JSONResponse(
+                        status_code=503,
+                        content={
+                            "success": False,
+                            "error": "HybridOrchestrator not available",
+                        },
+                    )
+                result = await orch.enqueue_long(
+                    "headless",
+                    f"fetch {req.url}",
+                    {
+                        "agent_name": req.agent_name,
+                        "payload": payload,
+                        "context": ctx.__dict__,
+                    },
+                )
                 return JSONResponse(content={"success": True, "task": result})
 
             # Synchronous path: instantiate agent and run
             try:
                 from vision_cortex.agents.headless_crawler import HeadlessCrawlerAgent
+
                 # create minimal bus mock
                 class _Bus:
                     def publish(self, topic, payload):
                         pass
+
                     def subscribe(self, topic, handler):
                         pass
 
-                agent = HeadlessCrawlerAgent(name=req.agent_name, role="headless", bus=_Bus())
+                agent = HeadlessCrawlerAgent(
+                    name=req.agent_name, role="headless", bus=_Bus()
+                )
                 out = agent.run_task(ctx, payload)
                 return JSONResponse(content={"success": True, "result": out})
             except Exception as e:
-                logger.exception('Headless agent run failed')
-                return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+                logger.exception("Headless agent run failed")
+                return JSONResponse(
+                    status_code=500, content={"success": False, "error": str(e)}
+                )
 
         except Exception as e:
-            logger.exception('Execute headless agent failed')
-            return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+            logger.exception("Execute headless agent failed")
+            return JSONResponse(
+                status_code=500, content={"success": False, "error": str(e)}
+            )
 
-
-    @app.get('/api/agents/status/{task_id}')
+    @app.get("/api/agents/status/{task_id}")
     async def get_agent_task_status(task_id: str):
         """Return status for in-process or Celery task.
 
@@ -675,32 +815,46 @@ async def frontend_api_proxy(path: str, request: Request):
             # If Celery is used, try to read backend
             try:
                 from vision_cortex.integration.celery_app import celery_app
+
                 async_result = celery_app.AsyncResult(task_id)
                 if async_result:
                     state = async_result.state
                     info = async_result.result
-                    return JSONResponse(content={"success": True, "task": {"celery_state": state, "result": info}})
+                    return JSONResponse(
+                        content={
+                            "success": True,
+                            "task": {"celery_state": state, "result": info},
+                        }
+                    )
             except Exception:
                 pass
-            return JSONResponse(status_code=404, content={"success": False, "error": "task not found"})
+            return JSONResponse(
+                status_code=404, content={"success": False, "error": "task not found"}
+            )
         except Exception as e:
-            logger.exception('Task status lookup failed')
-            return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+            logger.exception("Task status lookup failed")
+            return JSONResponse(
+                status_code=500, content={"success": False, "error": str(e)}
+            )
+
 
 # Mount MCP HTTP Adapter (OpenAPI/Custom GPT compatible)
 try:
     # Prefer clean ASCII adapter to avoid non-ASCII import issues
     from mcp_http_adapter_ascii import router as mcp_router
+
     app.include_router(mcp_router)
     logger.info("✓ MCP HTTP Adapter (ASCII) mounted: /mcp/* endpoints available")
 except Exception as e:
     logger.warning(f"⚠ ASCII MCP Adapter failed: {e}; trying fallback")
     try:
         from mcp_http_adapter import router as mcp_router
+
         app.include_router(mcp_router)
         logger.info("✓ MCP HTTP Adapter mounted: /mcp/* endpoints available")
     except Exception as e2:
         logger.warning(f"⚠ Failed to mount MCP HTTP Adapter: {e2}")
+
 
 # Alias endpoints for Custom GPT compatibility
 # Some clients expect /mcp/listMCPTools and /mcp/executeMCPTool.
@@ -710,6 +864,7 @@ async def mcp_list_tools_alias():
     try:
         # Read tools directly from main_extended to avoid server method quirks
         from main_extended import TOOLS as MCP_TOOLS
+
         tools = [
             {
                 "name": getattr(tool, "name", None),
@@ -718,10 +873,15 @@ async def mcp_list_tools_alias():
             }
             for tool in MCP_TOOLS
         ]
-        return JSONResponse(content={"success": True, "count": len(tools), "tools": tools})
+        return JSONResponse(
+            content={"success": True, "count": len(tools), "tools": tools}
+        )
     except Exception as e:
         logger.error(f"Alias listMCPTools failed: {e}")
-        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+        return JSONResponse(
+            status_code=500, content={"success": False, "error": str(e)}
+        )
+
 
 class MCPExecuteAlias(BaseModel):
     toolName: Optional[str] = None
@@ -729,34 +889,56 @@ class MCPExecuteAlias(BaseModel):
     arguments: Dict[str, Any] = {}
     dryRun: Optional[bool] = False
 
+
 @app.post("/mcp/executeMCPTool")
-async def mcp_execute_tool_alias(req: MCPExecuteAlias, x_mcp_key: Optional[str] = Header(None)):
+async def mcp_execute_tool_alias(
+    req: MCPExecuteAlias, x_mcp_key: Optional[str] = Header(None)
+):
     try:
         name = req.toolName or req.tool_name
         if not name:
-            return JSONResponse(status_code=400, content={"success": False, "error": "Missing toolName"})
+            return JSONResponse(
+                status_code=400, content={"success": False, "error": "Missing toolName"}
+            )
 
         # Allow dry-run without authentication to inspect parameters safely
         if req.dryRun:
             # Provide minimal parameter hint via governance and available registry if possible
             try:
-                schema = next((t.inputSchema for t in mcp_server.list_tools() if t.name == name), {})
+                schema = next(
+                    (t.inputSchema for t in mcp_server.list_tools() if t.name == name),
+                    {},
+                )
                 params = list((schema.get("properties") or {}).keys())
             except Exception:
                 params = []
-            return JSONResponse(content={"success": True, "tool": name, "dry_run": True, "parameters": params})
+            return JSONResponse(
+                content={
+                    "success": True,
+                    "tool": name,
+                    "dry_run": True,
+                    "parameters": params,
+                }
+            )
 
         # Enforce SAFE_MODE for actual execution
         safe_mode = os.environ.get("SAFE_MODE", "true").lower() in ("1", "true", "yes")
         if safe_mode:
             api_key = os.environ.get("MCP_API_KEY")
             if not x_mcp_key or x_mcp_key != api_key:
-                return JSONResponse(status_code=401, content={"success": False, "error": "Missing or invalid X-MCP-KEY"})
+                return JSONResponse(
+                    status_code=401,
+                    content={"success": False, "error": "Missing or invalid X-MCP-KEY"},
+                )
 
         result = await mcp_server.call_tool(name, req.arguments or {})
         payload = None
         try:
-            if isinstance(result, list) and len(result) > 0 and hasattr(result[0], "text"):
+            if (
+                isinstance(result, list)
+                and len(result) > 0
+                and hasattr(result[0], "text")
+            ):
                 payload = json.loads(result[0].text)
             else:
                 payload = result
@@ -765,11 +947,15 @@ async def mcp_execute_tool_alias(req: MCPExecuteAlias, x_mcp_key: Optional[str] 
         return JSONResponse(content={"success": True, "tool": name, "result": payload})
     except Exception as e:
         logger.error(f"Alias executeMCPTool failed: {e}")
-        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+        return JSONResponse(
+            status_code=500, content={"success": False, "error": str(e)}
+        )
+
 
 # Mount intelligence endpoints (arrival, mirror-business, pipeline-shadow)
 try:
     from intelligence_endpoints import router as intelligence_router
+
     app.include_router(intelligence_router, prefix="/v1/intelligence")
     logger.info("Intelligence endpoints mounted: /v1/intelligence")
 except Exception as e:
@@ -778,6 +964,7 @@ except Exception as e:
 # Mount credential gateway
 try:
     from credential_gateway import router as credential_router
+
     app.include_router(credential_router)
     logger.info("✓ Credential gateway mounted: /credentials/* endpoints")
 except Exception as e:
@@ -786,6 +973,7 @@ except Exception as e:
 # Mount autonomous orchestrator
 try:
     from autonomous_orchestrator import router as autonomy_router
+
     app.include_router(autonomy_router)
     logger.info("✓ Autonomous orchestrator mounted: /autonomy/* endpoints")
 except Exception as e:
@@ -794,6 +982,7 @@ except Exception as e:
 # Mount LangChain integration (RAG + Memory Sync + Autonomous)
 try:
     from langchain_integration import router as langchain_router
+
     app.include_router(langchain_router)
     logger.info("✓ LangChain integration mounted: /langchain/* endpoints")
 except Exception as e:
@@ -806,7 +995,9 @@ WEBVIEW_DIR = BASE_DIR / "webview"
 try:
     # 'app' should be the FastAPI instance created earlier in this file
     # If your app variable name differs, merge these two lines into your app init section.
-    from api_dashboard import router as dashboard_router  # ensure api_dashboard.py exists in repo
+    from api_dashboard import (
+        router as dashboard_router,  # ensure api_dashboard.py exists in repo
+    )
 
     if WEBVIEW_DIR.is_dir():
         app.mount("/webview", StaticFiles(directory=str(WEBVIEW_DIR)), name="webview")
@@ -816,6 +1007,7 @@ try:
 except Exception as e:
     # avoid breaking startup if dashboard module missing; log and continue
     print(f"[omni_gateway] dashboard mount/include skipped: {e}")
+
 
 # ===== HEALTH CHECK =====
 @app.get("/health")
@@ -828,11 +1020,13 @@ async def health_check():
 @app.get("/api/protocol")
 async def get_protocol():
     """Return the in-memory 110% protocol and indicate Firestore availability"""
-    return JSONResponse(content={
-        "success": True,
-        "protocol": PROTOCOL_110,
-        "firestore": _firestore_available
-    })
+    return JSONResponse(
+        content={
+            "success": True,
+            "protocol": PROTOCOL_110,
+            "firestore": _firestore_available,
+        }
+    )
 
 
 @app.get("/api/firestore/diagnose")
@@ -847,7 +1041,7 @@ async def firestore_diagnose():
         "credential_file_sha256": None,
         "client_init": None,
         "test_write": None,
-        "errors": []
+        "errors": [],
     }
 
     gac = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
@@ -856,6 +1050,7 @@ async def firestore_diagnose():
         if gac and os.path.exists(gac):
             report["credential_file_exists"] = True
             import hashlib
+
             try:
                 with open(gac, "rb") as f:
                     data = f.read()
@@ -887,7 +1082,10 @@ async def firestore_diagnose():
         report["errors"].append(f"Firestore init in diagnose failed: {e}")
 
     status_code = 200 if not report["errors"] else 500
-    return JSONResponse(status_code=status_code, content={"success": len(report["errors"])==0, "report": report})
+    return JSONResponse(
+        status_code=status_code,
+        content={"success": len(report["errors"]) == 0, "report": report},
+    )
 
 
 @app.post("/api/protocol/rehydrate")
@@ -895,9 +1093,14 @@ async def rehydrate_protocol():
     """Force rehydrate/write protocol to Firestore now"""
     ok = await load_110_protocol()
     if ok:
-        return JSONResponse(content={"success": True, "message": "Protocol rehydrated to Firestore"})
+        return JSONResponse(
+            content={"success": True, "message": "Protocol rehydrated to Firestore"}
+        )
     else:
-        return JSONResponse(status_code=500, content={"success": False, "error": "Failed to rehydrate protocol"})
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": "Failed to rehydrate protocol"},
+        )
 
 
 @app.get("/api/checklist")
@@ -915,7 +1118,9 @@ async def get_checklist():
             logger.error(f"Failed to read checklist from Firestore: {e}")
 
     # Fallback to in-memory
-    return JSONResponse(content={"success": True, "checklist": PROTOCOL_110["checklist"]})
+    return JSONResponse(
+        content={"success": True, "checklist": PROTOCOL_110["checklist"]}
+    )
 
 
 class ChecklistUpdate(BaseModel):
@@ -935,19 +1140,29 @@ async def update_checklist(item: ChecklistUpdate):
             break
 
     if not found:
-        return JSONResponse(status_code=404, content={"success": False, "error": "Checklist item not found"})
+        return JSONResponse(
+            status_code=404,
+            content={"success": False, "error": "Checklist item not found"},
+        )
 
     client = init_firestore()
     if client:
         try:
             doc_ref = client.collection(FIRESTORE_COLLECTION).document("protocol_110")
             doc_ref.set(PROTOCOL_110, merge=True)
-            return JSONResponse(content={"success": True, "message": "Checklist updated and persisted"})
+            return JSONResponse(
+                content={"success": True, "message": "Checklist updated and persisted"}
+            )
         except Exception as e:
             logger.error(f"Failed to persist checklist update: {e}")
-            return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+            return JSONResponse(
+                status_code=500, content={"success": False, "error": str(e)}
+            )
 
-    return JSONResponse(content={"success": True, "message": "Checklist updated (in-memory only)"})
+    return JSONResponse(
+        content={"success": True, "message": "Checklist updated (in-memory only)"}
+    )
+
 
 # Set up OpenTelemetry tracing
 trace.set_tracer_provider(TracerProvider())
@@ -958,13 +1173,16 @@ tracer_provider.add_span_processor(span_processor)
 
 tracer = trace.get_tracer(__name__)
 
+
 @app.middleware("http")
 async def add_tracing(request, call_next):
     with tracer.start_as_current_span("request"):
         response = await call_next(request)
     return response
 
+
 if __name__ == "__main__":
     import uvicorn
+
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")

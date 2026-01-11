@@ -2,24 +2,23 @@
 Autonomy Gateway - Main FastAPI application integrating all autonomy stack components
 Serves as the central hub for AI-autonomy orchestration with VS Code integration
 """
-from fastapi import FastAPI, Depends
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
+
 import logging
-import os
 from typing import Optional
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 
 # Autonomy stack imports
 from autonomy_stack.agent_factory import AgentFactory
-from autonomy_stack.task_queue import TaskQueue, celery_app
-from autonomy_stack.memory_layer import MemoryLayer
-from autonomy_stack.security import get_security_manager, SecurityManager
 from autonomy_stack.endpoints import create_routes
+from autonomy_stack.memory_layer import MemoryLayer
+from autonomy_stack.security import SecurityManager, get_security_manager
+from autonomy_stack.task_queue import TaskQueue, celery_app
 
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -27,7 +26,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="Autonomy Stack Gateway",
     description="AI-autonomy orchestration platform with multi-agent reasoning",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 # CORS middleware
@@ -49,23 +48,23 @@ _security: Optional[SecurityManager] = None
 def get_components():
     """Initialize and cache components"""
     global _agent_factory, _task_queue, _memory_layer, _security
-    
+
     if _security is None:
         _security = get_security_manager()
         logger.info("✓ Security manager initialized")
-    
+
     if _memory_layer is None:
         _memory_layer = MemoryLayer(persist_dir="./data/chroma")
         logger.info("✓ Memory layer initialized")
-    
+
     if _agent_factory is None:
         _agent_factory = AgentFactory(memory=_memory_layer)
         logger.info("✓ Agent factory initialized")
-    
+
     if _task_queue is None:
         _task_queue = TaskQueue(celery_app)
         logger.info("✓ Task queue initialized")
-    
+
     return _agent_factory, _task_queue, _memory_layer, _security
 
 
@@ -154,7 +153,7 @@ async def vscode_pipeline():
     return {
         "pipelines": [],
         "available_agents": ["visionary", "strategist", "builder", "critic"],
-        "status": "ready"
+        "status": "ready",
     }
 
 
@@ -414,4 +413,5 @@ def get_dashboard_html() -> str:
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -2,16 +2,18 @@
 Hostinger API Integration Helper
 Manages domains, hosting, DNS, and SSL via Hostinger API
 """
+
 import os
+from typing import Any, Dict, Optional
+
 import httpx
-from typing import Dict, List, Optional, Any
 
 HOSTINGER_API_BASE = "https://api.hostinger.com/v1"
 
 
 def get_api_key() -> Optional[str]:
     """Get Hostinger API key from environment"""
-    return os.getenv('HOSTINGER_API_KEY')
+    return os.getenv("HOSTINGER_API_KEY")
 
 
 def get_headers() -> Dict[str, str]:
@@ -19,10 +21,7 @@ def get_headers() -> Dict[str, str]:
     api_key = get_api_key()
     if not api_key:
         raise ValueError("HOSTINGER_API_KEY not set")
-    return {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
+    return {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
 
 async def list_domains() -> Dict[str, Any]:
@@ -30,8 +29,7 @@ async def list_domains() -> Dict[str, Any]:
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.get(
-                f"{HOSTINGER_API_BASE}/domains",
-                headers=get_headers()
+                f"{HOSTINGER_API_BASE}/domains", headers=get_headers()
             )
             resp.raise_for_status()
             return {"status": "success", "domains": resp.json()}
@@ -44,8 +42,7 @@ async def get_domain_info(domain: str) -> Dict[str, Any]:
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.get(
-                f"{HOSTINGER_API_BASE}/domains/{domain}",
-                headers=get_headers()
+                f"{HOSTINGER_API_BASE}/domains/{domain}", headers=get_headers()
             )
             resp.raise_for_status()
             return {"status": "success", "domain": resp.json()}
@@ -58,8 +55,7 @@ async def list_dns_records(domain: str) -> Dict[str, Any]:
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.get(
-                f"{HOSTINGER_API_BASE}/domains/{domain}/dns",
-                headers=get_headers()
+                f"{HOSTINGER_API_BASE}/domains/{domain}/dns", headers=get_headers()
             )
             resp.raise_for_status()
             return {"status": "success", "records": resp.json()}
@@ -67,7 +63,9 @@ async def list_dns_records(domain: str) -> Dict[str, Any]:
         return {"error": str(e)}
 
 
-async def create_dns_record(domain: str, record_type: str, name: str, content: str, ttl: int = 3600) -> Dict[str, Any]:
+async def create_dns_record(
+    domain: str, record_type: str, name: str, content: str, ttl: int = 3600
+) -> Dict[str, Any]:
     """Create a DNS record"""
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -78,8 +76,8 @@ async def create_dns_record(domain: str, record_type: str, name: str, content: s
                     "type": record_type,
                     "name": name,
                     "content": content,
-                    "ttl": ttl
-                }
+                    "ttl": ttl,
+                },
             )
             resp.raise_for_status()
             return {"status": "success", "record": resp.json()}
@@ -87,14 +85,16 @@ async def create_dns_record(domain: str, record_type: str, name: str, content: s
         return {"error": str(e)}
 
 
-async def update_dns_record(domain: str, record_id: str, content: str) -> Dict[str, Any]:
+async def update_dns_record(
+    domain: str, record_id: str, content: str
+) -> Dict[str, Any]:
     """Update a DNS record"""
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.put(
                 f"{HOSTINGER_API_BASE}/domains/{domain}/dns/{record_id}",
                 headers=get_headers(),
-                json={"content": content}
+                json={"content": content},
             )
             resp.raise_for_status()
             return {"status": "success", "record": resp.json()}
@@ -108,7 +108,7 @@ async def delete_dns_record(domain: str, record_id: str) -> Dict[str, Any]:
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.delete(
                 f"{HOSTINGER_API_BASE}/domains/{domain}/dns/{record_id}",
-                headers=get_headers()
+                headers=get_headers(),
             )
             resp.raise_for_status()
             return {"status": "success", "deleted": record_id}
@@ -121,8 +121,7 @@ async def list_ssl_certificates(domain: str) -> Dict[str, Any]:
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.get(
-                f"{HOSTINGER_API_BASE}/domains/{domain}/ssl",
-                headers=get_headers()
+                f"{HOSTINGER_API_BASE}/domains/{domain}/ssl", headers=get_headers()
             )
             resp.raise_for_status()
             return {"status": "success", "certificates": resp.json()}
@@ -135,8 +134,7 @@ async def get_website_status(domain: str) -> Dict[str, Any]:
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.get(
-                f"{HOSTINGER_API_BASE}/websites/{domain}",
-                headers=get_headers()
+                f"{HOSTINGER_API_BASE}/websites/{domain}", headers=get_headers()
             )
             resp.raise_for_status()
             return {"status": "success", "website": resp.json()}
@@ -150,7 +148,7 @@ async def list_databases(domain: str) -> Dict[str, Any]:
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.get(
                 f"{HOSTINGER_API_BASE}/websites/{domain}/databases",
-                headers=get_headers()
+                headers=get_headers(),
             )
             resp.raise_for_status()
             return {"status": "success", "databases": resp.json()}
@@ -162,19 +160,17 @@ def test_connection() -> Dict[str, Any]:
     """Test Hostinger API connection"""
     api_key = get_api_key()
     if not api_key:
-        return {
-            "status": "not_configured",
-            "message": "HOSTINGER_API_KEY not set"
-        }
+        return {"status": "not_configured", "message": "HOSTINGER_API_KEY not set"}
     return {
         "status": "configured",
         "message": "Hostinger API key present",
-        "key_prefix": api_key[:8] + "..." if len(api_key) > 8 else "***"
+        "key_prefix": api_key[:8] + "..." if len(api_key) > 8 else "***",
     }
 
 
 if __name__ == "__main__":
     import asyncio
+
     result = test_connection()
     print(result)
     if result["status"] == "configured":

@@ -1,19 +1,19 @@
 """
 API endpoints for interactive trading dashboard
 """
-import sys
+
 import os
+import sys
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from fastapi import FastAPI, HTTPException
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, HTMLResponse
-from fastapi.middleware.cors import CORSMiddleware
-from typing import Optional
-from fastapi import Query
 import sqlite3
 from datetime import datetime
-from typing import List, Dict
+from typing import Dict, List, Optional
+
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 
 app = FastAPI()
 
@@ -26,16 +26,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-DB_PATH = 'mcp_memory.db'
+DB_PATH = "mcp_memory.db"
 CHAT_LOG: List[Dict] = []
 
 
 def add_chat_message(role: str, text: str):
-    CHAT_LOG.append({
-        "role": role,
-        "text": text,
-        "timestamp": datetime.utcnow().isoformat() + "Z"
-    })
+    CHAT_LOG.append(
+        {"role": role, "text": text, "timestamp": datetime.utcnow().isoformat() + "Z"}
+    )
     # keep log manageable
     if len(CHAT_LOG) > 200:
         del CHAT_LOG[:50]
@@ -44,33 +42,40 @@ def add_chat_message(role: str, text: str):
 # seed chat with a status line
 add_chat_message("system", "System online. Ready for commands.")
 
+
 # Serve original Command Center SPA (black dashboard) as primary UI
 @app.get("/")
 async def root():
     with open("command_center_spa.html", "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
+
 @app.get("/dashboard.html")
 async def dashboard():
     with open("command_center_spa.html", "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
+
 
 @app.get("/command-center")
 async def command_center():
     with open("command_center_spa.html", "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
+
 @app.get("/command_center.html")
 async def command_center_html():
     with open("command_center_spa.html", "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
+
 
 @app.get("/command_center")
 async def command_center_alt():
     with open("command_center_spa.html", "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
+
 # ===== CHAT ENDPOINTS =====
+
 
 @app.get("/api/chat")
 async def get_chat():
@@ -88,27 +93,27 @@ async def post_chat(payload: dict):
     add_chat_message(role, text.strip())
     return {"status": "ok", "messages": CHAT_LOG}
 
+
 # ===== BANK ACCOUNT ENDPOINTS =====
+
 
 @app.get("/api/bank")
 def get_bank_balance():
     """Get current bank balance"""
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
-    
-    cur.execute("""
+
+    cur.execute(
+        """
         SELECT current_balance FROM paper_accounts WHERE id = 1
-    """)
+    """
+    )
     row = cur.fetchone()
     conn.close()
-    
+
     if row:
-        return {
-            'balance': row[0],
-            'account_id': 1,
-            'account_name': 'AI Automated'
-        }
-    return {'balance': 0, 'error': 'Account not found'}
+        return {"balance": row[0], "account_id": 1, "account_name": "AI Automated"}
+    return {"balance": 0, "error": "Account not found"}
 
 
 @app.post("/api/bank/deposit")
@@ -116,23 +121,26 @@ def deposit(amount: float):
     """Deposit funds into bank account"""
     if amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be positive")
-    
+
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
-    
-    cur.execute("""
+
+    cur.execute(
+        """
         UPDATE paper_accounts 
         SET current_balance = current_balance + ?, updated_at = ?
         WHERE id = 1
-    """, (amount, datetime.now().isoformat()))
-    
+    """,
+        (amount, datetime.now().isoformat()),
+    )
+
     conn.commit()
-    
+
     cur.execute("SELECT current_balance FROM paper_accounts WHERE id = 1")
     new_balance = cur.fetchone()[0]
     conn.close()
-    
-    return {'balance': new_balance, 'deposited': amount}
+
+    return {"balance": new_balance, "deposited": amount}
 
 
 @app.post("/api/bank/withdraw")
@@ -140,27 +148,32 @@ def withdraw(amount: float):
     """Withdraw funds from bank"""
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
-    
+
     cur.execute("SELECT current_balance FROM paper_accounts WHERE id = 1")
     current = cur.fetchone()[0]
-    
+
     if amount > current:
         conn.close()
-        raise HTTPException(status_code=400, detail=f"Insufficient funds. Available: ${current:.2f}")
-    
-    cur.execute("""
+        raise HTTPException(
+            status_code=400, detail=f"Insufficient funds. Available: ${current:.2f}"
+        )
+
+    cur.execute(
+        """
         UPDATE paper_accounts 
         SET current_balance = current_balance - ?, updated_at = ?
         WHERE id = 1
-    """, (amount, datetime.now().isoformat()))
-    
+    """,
+        (amount, datetime.now().isoformat()),
+    )
+
     conn.commit()
-    
+
     cur.execute("SELECT current_balance FROM paper_accounts WHERE id = 1")
     new_balance = cur.fetchone()[0]
     conn.close()
-    
-    return {'balance': new_balance, 'withdrawn': amount}
+
+    return {"balance": new_balance, "withdrawn": amount}
 
 
 @app.post("/api/bank/set")
@@ -168,70 +181,108 @@ def set_balance(amount: float):
     """Directly set bank balance (admin function)"""
     if amount < 0:
         raise HTTPException(status_code=400, detail="Balance cannot be negative")
-    
+
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
-    
+
     cur.execute("SELECT current_balance FROM paper_accounts WHERE id = 1")
     old_balance = cur.fetchone()[0]
-    
-    cur.execute("""
+
+    cur.execute(
+        """
         UPDATE paper_accounts 
         SET current_balance = ?, updated_at = ?
         WHERE id = 1
-    """, (amount, datetime.now().isoformat()))
-    
+    """,
+        (amount, datetime.now().isoformat()),
+    )
+
     conn.commit()
     conn.close()
-    
-    return {'old_balance': old_balance, 'new_balance': amount, 'changed_by': amount - old_balance}
+
+    return {
+        "old_balance": old_balance,
+        "new_balance": amount,
+        "changed_by": amount - old_balance,
+    }
 
 
 # ===== PORTFOLIO ENDPOINTS =====
+
 
 @app.get("/api/portfolio")
 def get_portfolio():
     """Get current portfolio with P&L"""
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
-    
+
     # Account summary
-    cur.execute("""
+    cur.execute(
+        """
         SELECT current_balance, starting_balance FROM paper_accounts WHERE id = 1
-    """)
+    """
+    )
     balance_row = cur.fetchone()
     cash, starting = balance_row if balance_row else (0, 0)
-    
+
     # Open positions
-    cur.execute("""
+    cur.execute(
+        """
         SELECT id, asset, direction, entry_price, quantity, position_size, opened_at
         FROM paper_positions
         WHERE account_id = 1 AND status = 'open'
         ORDER BY position_size DESC
-    """)
-    
+    """
+    )
+
     positions = []
     total_positions_value = 0
-    
+
     # Mock prices for demo
     prices = {
-        'BTC': 98500.0, 'ETH': 3600.0, 'SOL': 195.0, 'XRP': 2.35, 'BNB': 695.0,
-        'DOGE': 0.32, 'PEPE': 0.000018, 'SHIB': 0.000023, 'BONK': 0.000032, 'WIF': 2.85,
-        'MSFT': 445.0, 'AAPL': 252.0, 'JNJ': 158.0, 'KO': 63.5, 'PG': 172.0,
-        'GOLD': 2650.0, 'WTI': 71.5, 'SILVER': 30.2, 'NATGAS': 3.45, 'COPPER': 4.15,
-        'NVDA': 138.0, 'TSLA': 385.0, 'COIN': 285.0, 'ARKK': 52.0, 'ZM': 78.0,
-        'PTON': 6.85, 'RIVN': 12.5, 'PLTR': 78.0, 'DXY': 108.2, 'VIX': 14.8, 'SPY': 595.0,
+        "BTC": 98500.0,
+        "ETH": 3600.0,
+        "SOL": 195.0,
+        "XRP": 2.35,
+        "BNB": 695.0,
+        "DOGE": 0.32,
+        "PEPE": 0.000018,
+        "SHIB": 0.000023,
+        "BONK": 0.000032,
+        "WIF": 2.85,
+        "MSFT": 445.0,
+        "AAPL": 252.0,
+        "JNJ": 158.0,
+        "KO": 63.5,
+        "PG": 172.0,
+        "GOLD": 2650.0,
+        "WTI": 71.5,
+        "SILVER": 30.2,
+        "NATGAS": 3.45,
+        "COPPER": 4.15,
+        "NVDA": 138.0,
+        "TSLA": 385.0,
+        "COIN": 285.0,
+        "ARKK": 52.0,
+        "ZM": 78.0,
+        "PTON": 6.85,
+        "RIVN": 12.5,
+        "PLTR": 78.0,
+        "DXY": 108.2,
+        "VIX": 14.8,
+        "SPY": 595.0,
     }
-    
+
     import random
+
     for pos in cur.fetchall():
         pos_id, asset, direction, entry_price, quantity, pos_size, opened = pos
-        
+
         # Simulate price movement
         current_price = prices.get(asset, entry_price)
-        current_price *= (1 + random.uniform(-0.05, 0.05))
-        
-        if direction == 'long':
+        current_price *= 1 + random.uniform(-0.05, 0.05)
+
+        if direction == "long":
             current_value = current_price * quantity
             pnl = current_value - pos_size
             pnl_pct = (pnl / pos_size) * 100
@@ -239,34 +290,40 @@ def get_portfolio():
             current_value = pos_size - (current_price * quantity)
             pnl = current_value - pos_size
             pnl_pct = (pnl / pos_size) * 100
-        
-        positions.append({
-            'id': pos_id,
-            'asset': asset,
-            'direction': direction,
-            'entry_price': entry_price,
-            'current_price': current_price,
-            'quantity': quantity,
-            'entry_value': pos_size,
-            'current_value': current_value,
-            'pnl': pnl,
-            'pnl_pct': pnl_pct,
-            'opened_at': opened
-        })
-        
+
+        positions.append(
+            {
+                "id": pos_id,
+                "asset": asset,
+                "direction": direction,
+                "entry_price": entry_price,
+                "current_price": current_price,
+                "quantity": quantity,
+                "entry_value": pos_size,
+                "current_value": current_value,
+                "pnl": pnl,
+                "pnl_pct": pnl_pct,
+                "opened_at": opened,
+            }
+        )
+
         total_positions_value += current_value
-    
+
     conn.close()
-    
+
     return {
-        'cash_balance': cash,
-        'positions_value': total_positions_value,
-        'total_value': cash + total_positions_value,
-        'starting_balance': starting,
-        'total_pnl': (cash + total_positions_value) - starting,
-        'total_pnl_pct': ((cash + total_positions_value) - starting) / starting * 100 if starting > 0 else 0,
-        'positions': positions,
-        'num_positions': len(positions)
+        "cash_balance": cash,
+        "positions_value": total_positions_value,
+        "total_value": cash + total_positions_value,
+        "starting_balance": starting,
+        "total_pnl": (cash + total_positions_value) - starting,
+        "total_pnl_pct": (
+            ((cash + total_positions_value) - starting) / starting * 100
+            if starting > 0
+            else 0
+        ),
+        "positions": positions,
+        "num_positions": len(positions),
     }
 
 
@@ -274,74 +331,106 @@ def get_portfolio():
 def add_position(asset: str, direction: str, price: float, quantity: float):
     """Add a new position from bank balance"""
     if quantity <= 0 or price <= 0:
-        raise HTTPException(status_code=400, detail="Price and quantity must be positive")
-    
-    if direction not in ['long', 'short']:
-        raise HTTPException(status_code=400, detail="Direction must be 'long' or 'short'")
-    
+        raise HTTPException(
+            status_code=400, detail="Price and quantity must be positive"
+        )
+
+    if direction not in ["long", "short"]:
+        raise HTTPException(
+            status_code=400, detail="Direction must be 'long' or 'short'"
+        )
+
     position_size = price * quantity
-    
+
     # Check available funds
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
-    
+
     cur.execute("SELECT current_balance FROM paper_accounts WHERE id = 1")
     available = cur.fetchone()[0]
-    
+
     if position_size > available:
         conn.close()
-        raise HTTPException(status_code=400, detail=f"Insufficient funds: need ${position_size:.2f}, have ${available:.2f}")
-    
+        raise HTTPException(
+            status_code=400,
+            detail=f"Insufficient funds: need ${position_size:.2f}, have ${available:.2f}",
+        )
+
     # Deduct from cash
-    cur.execute("""
+    cur.execute(
+        """
         UPDATE paper_accounts 
         SET current_balance = current_balance - ?, updated_at = ?
         WHERE id = 1
-    """, (position_size, datetime.now().isoformat()))
-    
+    """,
+        (position_size, datetime.now().isoformat()),
+    )
+
     # Add position
-    cur.execute("""
+    cur.execute(
+        """
         INSERT INTO paper_positions (account_id, asset, asset_type, direction, entry_price, position_size, quantity, opened_at, status, entry_reason)
         VALUES (?, ?, 'manual', ?, ?, ?, ?, ?, 'open', 'Manual entry via dashboard')
-    """, (1, asset, direction, price, position_size, quantity, datetime.now().isoformat()))
-    
+    """,
+        (
+            1,
+            asset,
+            direction,
+            price,
+            position_size,
+            quantity,
+            datetime.now().isoformat(),
+        ),
+    )
+
     conn.commit()
     conn.close()
-    
+
     return {
-        'success': True,
-        'asset': asset,
-        'direction': direction,
-        'entry_price': price,
-        'quantity': quantity,
-        'position_size': position_size
+        "success": True,
+        "asset": asset,
+        "direction": direction,
+        "entry_price": price,
+        "quantity": quantity,
+        "position_size": position_size,
     }
 
 
 # ===== TRADING MODE ENDPOINTS =====
+
 
 @app.post("/api/mode/auto")
 def start_auto_mode():
     """Start AI auto-trading"""
     import subprocess
     import threading
-    
+
     def run_trader():
-        subprocess.Popen(['python', 'scripts/ai_auto_trader.py', '--account-id', '1', '--loop', '--interval', '60'])
-    
+        subprocess.Popen(
+            [
+                "python",
+                "scripts/ai_auto_trader.py",
+                "--account-id",
+                "1",
+                "--loop",
+                "--interval",
+                "60",
+            ]
+        )
+
     thread = threading.Thread(target=run_trader, daemon=True)
     thread.start()
-    
-    return {'status': 'auto-trader started', 'mode': 'FULL AUTO'}
+
+    return {"status": "auto-trader started", "mode": "FULL AUTO"}
 
 
 @app.post("/api/mode/hybrid")
 def start_hybrid_mode():
     """Start hybrid mode"""
     return {
-        'status': 'ready',
-        'mode': 'HYBRID',
-        'message': 'Run: python scripts/hybrid_trader.py'
+        "status": "ready",
+        "mode": "HYBRID",
+        "message": "Run: python scripts/hybrid_trader.py",
     }
 
 
@@ -349,103 +438,114 @@ def start_hybrid_mode():
 def start_manual_mode():
     """Start manual trading"""
     return {
-        'status': 'ready',
-        'mode': 'MANUAL',
-        'message': 'Run: python scripts/human_trader.py'
+        "status": "ready",
+        "mode": "MANUAL",
+        "message": "Run: python scripts/human_trader.py",
     }
 
 
 # ===== UNIFIED ENDPOINTS FOR GATEWAY COMPATIBILITY =====
 
+
 @app.post("/api/predict")
 async def predict(asset: str, confidence: int = 50):
     """Predict endpoint - portfolio context"""
     from prediction_engine import log_prediction
-    
+
     pred_id = log_prediction(
         asset=asset,
-        asset_type='stock',
-        prediction_type='price',
-        timeframe='24h',
-        target_date=datetime.now().isoformat().split('T')[0],
+        asset_type="stock",
+        prediction_type="price",
+        timeframe="24h",
+        target_date=datetime.now().isoformat().split("T")[0],
         confidence=confidence,
-        rationale=f"Dashboard context prediction for {asset}"
+        rationale=f"Dashboard context prediction for {asset}",
     )
-    
+
     # Get portfolio impact analysis
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
-    cur.execute("SELECT COUNT(*) FROM paper_positions WHERE asset = ? AND status = 'open'", (asset,))
+    cur.execute(
+        "SELECT COUNT(*) FROM paper_positions WHERE asset = ? AND status = 'open'",
+        (asset,),
+    )
     open_positions = cur.fetchone()[0]
     conn.close()
-    
+
     return {
-        'success': True,
-        'prediction_id': pred_id,
-        'asset': asset,
-        'open_positions': open_positions,
-        'source': 'dashboard'
+        "success": True,
+        "prediction_id": pred_id,
+        "asset": asset,
+        "open_positions": open_positions,
+        "source": "dashboard",
     }
 
 
 @app.post("/api/crawl")
 async def crawl(url: str, depth: int = 1):
     """Crawl endpoint - market data collection"""
-    import subprocess
     import json as js
-    
+
     # Enqueue crawl job
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
-    cur.execute("""
+    cur.execute(
+        """
         INSERT INTO jobs (type, action, payload, status)
         VALUES (?, ?, ?, ?)
-    """, ('crawl', 'market_data', js.dumps({'url': url, 'depth': depth}), 'pending'))
+    """,
+        ("crawl", "market_data", js.dumps({"url": url, "depth": depth}), "pending"),
+    )
     conn.commit()
     job_id = cur.lastrowid
     conn.close()
-    
+
     return {
-        'success': True,
-        'job_id': job_id,
-        'url': url,
-        'depth': depth,
-        'status': 'queued',
-        'source': 'dashboard'
+        "success": True,
+        "job_id": job_id,
+        "url": url,
+        "depth": depth,
+        "status": "queued",
+        "source": "dashboard",
     }
 
 
 @app.post("/api/simulate")
-async def simulate(scenario: str, asset: Optional[str] = None, parameters: Optional[dict] = None):
+async def simulate(
+    scenario: str, asset: Optional[str] = None, parameters: Optional[dict] = None
+):
     """Simulate endpoint - backtesting and scenario analysis"""
     import json as js
-    
+
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
-    cur.execute("""
+    cur.execute(
+        """
         INSERT INTO jobs (type, action, payload, status)
         VALUES (?, ?, ?, ?)
-    """, ('simulate', scenario, js.dumps(parameters or {}), 'pending'))
+    """,
+        ("simulate", scenario, js.dumps(parameters or {}), "pending"),
+    )
     conn.commit()
     job_id = cur.lastrowid
     conn.close()
-    
+
     return {
-        'success': True,
-        'job_id': job_id,
-        'scenario': scenario,
-        'asset': asset,
-        'status': 'queued',
-        'source': 'dashboard'
+        "success": True,
+        "job_id": job_id,
+        "scenario": scenario,
+        "asset": asset,
+        "status": "queued",
+        "source": "dashboard",
     }
 
 
 @app.get("/api/read/{resource}")
 async def read_resource(resource: str):
     """Unified read endpoint"""
-    if resource == 'portfolio':
+    if resource == "portfolio":
         return await get_portfolio()
-    elif resource == 'bank':
+    elif resource == "bank":
         return await get_bank_balance()
     else:
         raise HTTPException(status_code=404, detail=f"Resource {resource} not found")
@@ -454,14 +554,14 @@ async def read_resource(resource: str):
 @app.post("/api/write/{resource}")
 async def write_resource(resource: str, payload: dict):
     """Unified write endpoint"""
-    if resource == 'bank':
-        return await set_balance(payload.get('amount', 0))
-    elif resource == 'position':
+    if resource == "bank":
+        return await set_balance(payload.get("amount", 0))
+    elif resource == "position":
         return await add_position(
-            asset=payload.get('asset'),
-            direction=payload.get('direction'),
-            price=payload.get('price'),
-            quantity=payload.get('quantity')
+            asset=payload.get("asset"),
+            direction=payload.get("direction"),
+            price=payload.get("price"),
+            quantity=payload.get("quantity"),
         )
     else:
         raise HTTPException(status_code=404, detail=f"Resource {resource} not found")
@@ -470,21 +570,22 @@ async def write_resource(resource: str, payload: dict):
 @app.post("/api/analyze/{resource}")
 async def analyze_resource(resource: str, payload: dict):
     """Unified analyze endpoint"""
-    if resource == 'portfolio':
+    if resource == "portfolio":
         portfolio = await get_portfolio()
         return {
-            'resource': resource,
-            'analysis': {
-                'total_positions': portfolio['num_positions'],
-                'total_value': portfolio['total_value'],
-                'total_pnl': portfolio['total_pnl'],
-                'total_pnl_pct': portfolio['total_pnl_pct']
-            }
+            "resource": resource,
+            "analysis": {
+                "total_positions": portfolio["num_positions"],
+                "total_value": portfolio["total_value"],
+                "total_pnl": portfolio["total_pnl"],
+                "total_pnl_pct": portfolio["total_pnl_pct"],
+            },
         }
     else:
         raise HTTPException(status_code=404, detail=f"Resource {resource} not found")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host='0.0.0.0', port=8001)
+
+    uvicorn.run(app, host="0.0.0.0", port=8001)

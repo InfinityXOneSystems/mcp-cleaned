@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+httpx
+google-cloud-firestore
+opentelemetry-sdk
+prometheus-client
+celery
+redis
+PyJWT
+

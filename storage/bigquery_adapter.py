@@ -1,9 +1,11 @@
 import os
-from typing import Dict, Any
+from typing import Any, Dict
+
 try:
     from google.cloud import bigquery
 except Exception:
     bigquery = None
+
 
 class BigQueryAdapter:
     def __init__(self, client=None, dataset=None, table=None):
@@ -21,6 +23,7 @@ class BigQueryAdapter:
             # fallback: local append
             path = os.getenv("BQ_LOCAL", "crawler/output/bq_local.jsonl")
             import json
+
             with open(path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(record) + "\n")
             return

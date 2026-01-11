@@ -1,4 +1,3 @@
-import asyncio
 from typing import List
 
 from async_crawler import crawl_url

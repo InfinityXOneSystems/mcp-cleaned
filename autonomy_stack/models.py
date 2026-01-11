@@ -1,14 +1,17 @@
 """
 Data models for autonomy stack
 """
-from typing import Optional, Dict, Any, List
-from pydantic import BaseModel, Field
-from enum import Enum
+
 from datetime import datetime
+from enum import Enum
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field
 
 
 class AgentRole(str, Enum):
     """Available agent roles"""
+
     VISIONARY = "visionary"
     STRATEGIST = "strategist"
     BUILDER = "builder"
@@ -17,6 +20,7 @@ class AgentRole(str, Enum):
 
 class TaskStatus(str, Enum):
     """Task lifecycle states"""
+
     PENDING = "pending"
     QUEUED = "queued"
     RUNNING = "running"
@@ -27,6 +31,7 @@ class TaskStatus(str, Enum):
 
 class AgentConfig(BaseModel):
     """Configuration for agent initialization"""
+
     role: AgentRole
     model: str = Field(default="gpt-4-turbo-preview")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
@@ -41,6 +46,7 @@ class AgentConfig(BaseModel):
 
 class TaskRequest(BaseModel):
     """Request to execute a task"""
+
     task_type: str
     agent_role: AgentRole
     objective: str
@@ -55,6 +61,7 @@ class TaskRequest(BaseModel):
 
 class TaskResult(BaseModel):
     """Result of task execution"""
+
     task_id: str
     status: TaskStatus
     agent_role: str
@@ -73,6 +80,7 @@ class TaskResult(BaseModel):
 
 class MemoryEntry(BaseModel):
     """Entry in vector memory"""
+
     id: str
     content: str
     metadata: Dict[str, Any]
@@ -87,6 +95,7 @@ class MemoryEntry(BaseModel):
 
 class PipelineConfig(BaseModel):
     """Configuration for a multi-agent pipeline"""
+
     name: str
     agents: List[AgentRole]
     stages: List[Dict[str, Any]]
@@ -99,6 +108,7 @@ class PipelineConfig(BaseModel):
 
 class ModelExperimentConfig(BaseModel):
     """Configuration for model experimentation"""
+
     name: str
     model_type: str  # "pytorch", "tensorflow", "huggingface"
     task: str

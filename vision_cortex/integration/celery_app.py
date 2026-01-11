@@ -4,11 +4,13 @@ Requires environment variables:
 - CELERY_BROKER_URL (e.g. redis://localhost:6379/0)
 - CELERY_BACKEND_URL (optional)
 """
+
 from __future__ import annotations
 
-import os
-from celery import Celery
 import logging
+import os
+
+from celery import Celery
 
 logger = logging.getLogger(__name__)
 

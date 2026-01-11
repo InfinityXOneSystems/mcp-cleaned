@@ -4,30 +4,36 @@
 Endpoints: /health, /read, /write, /analyze, /simulate, /predict, /crawl
 """
 import os
+
+import requests
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-import requests
 
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 
 app = FastAPI(title="Orchestrator", version="1.0")
 GATEWAY = os.environ.get("GATEWAY_URL", "http://localhost:8000")
 
+
 class ReadRequest(BaseModel):
     target: str
+
 
 class WriteRequest(BaseModel):
     target: str
     content: str
+
 
 class AnalyzeRequest(BaseModel):
     payload: dict
     provider: str | None = None
     action: str | None = None
 
+
 class PredictRequest(BaseModel):
     model: str
     input: dict
+
 
 class CrawlRequest(BaseModel):
     url: str
@@ -41,19 +47,23 @@ class ExecuteRequest(BaseModel):
     provider: str | None = None
     action: str | None = None
 
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
 
 @app.post("/read")
 def read(req: ReadRequest):
     # Placeholder: delegate to gateway read endpoint if available
     return {"status": "ok", "target": req.target, "note": "Read stub"}
 
+
 @app.post("/write")
 def write(req: WriteRequest):
     # Placeholder: add real write once target store is defined
     return {"status": "ok", "target": req.target, "note": "Write stub"}
+
 
 @app.post("/analyze")
 def analyze(req: AnalyzeRequest):
@@ -62,8 +72,9 @@ def analyze(req: AnalyzeRequest):
         "status": "ok",
         "provider": req.provider or "generic",
         "action": req.action or "analyze",
-        "analysis": req.payload
+        "analysis": req.payload,
     }
+
 
 @app.post("/simulate")
 def simulate(req: AnalyzeRequest):
@@ -71,22 +82,32 @@ def simulate(req: AnalyzeRequest):
         "status": "ok",
         "provider": req.provider or "generic",
         "action": req.action or "simulate",
-        "simulation": req.payload
+        "simulation": req.payload,
     }
+
 
 @app.post("/predict")
 def predict(req: PredictRequest):
-    r = requests.post(f"{GATEWAY}/predict", json={"model": req.model, "input": req.input}, timeout=15)
+    r = requests.post(
+        f"{GATEWAY}/predict", json={"model": req.model, "input": req.input}, timeout=15
+    )
     if r.status_code >= 400:
         raise HTTPException(status_code=r.status_code, detail=r.text)
     return r.json()
 
+
 @app.post("/crawl")
 def crawl(req: CrawlRequest):
-    r = requests.post(f"{GATEWAY}/crawl", json={"url": req.url, "depth": req.depth}, timeout=30)
+    r = requests.post(
+        f"{GATEWAY}/crawl", json={"url": req.url, "depth": req.depth}, timeout=30
+    )
     if r.status_code >= 400:
         raise HTTPException(status_code=r.status_code, detail=r.text)
-    return r.json() if r.headers.get('content-type','').startswith('application/json') else {"status": r.status_code, "body": r.text[:200]}
+    return (
+        r.json()
+        if r.headers.get("content-type", "").startswith("application/json")
+        else {"status": r.status_code, "body": r.text[:200]}
+    )
 
 
 @app.post("/execute")
@@ -104,11 +125,24 @@ def execute(req: ExecuteRequest):
 
         if provider == "workspace":
             # Workspace routes through gateway sheets/calendar endpoints
-            if action in {"sheets_append", "sheets_read", "sheets_update", "sheets_clear"}:
+            if action in {
+                "sheets_append",
+                "sheets_read",
+                "sheets_update",
+                "sheets_clear",
+            }:
                 return proxy_gateway_sheets(action, payload)
-            if action in {"calendar_list", "calendar_create", "calendar_update", "calendar_delete", "calendar_from_prediction"}:
+            if action in {
+                "calendar_list",
+                "calendar_create",
+                "calendar_update",
+                "calendar_delete",
+                "calendar_from_prediction",
+            }:
                 return proxy_gateway_calendar(action, payload)
-            raise HTTPException(status_code=400, detail=f"Unsupported workspace action: {action}")
+            raise HTTPException(
+                status_code=400, detail=f"Unsupported workspace action: {action}"
+            )
 
         if provider == "gateway":
             return proxy_gateway(cmd, payload)
@@ -134,7 +168,10 @@ def execute(req: ExecuteRequest):
 
 # ---------- Provider helpers ----------
 
-def gh_request(method: str, path: str, *, json_body: dict | None = None, params: dict | None = None):
+
+def gh_request(
+    method: str, path: str, *, json_body: dict | None = None, params: dict | None = None
+):
     if not GITHUB_TOKEN:
         raise HTTPException(status_code=401, detail="GITHUB_TOKEN not configured")
     url = f"https://api.github.com{path}"
@@ -143,7 +180,9 @@ def gh_request(method: str, path: str, *, json_body: dict | None = None, params:
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
     }
-    r = requests.request(method, url, headers=headers, json=json_body, params=params, timeout=20)
+    r = requests.request(
+        method, url, headers=headers, json=json_body, params=params, timeout=20
+    )
     if r.status_code >= 400:
         raise HTTPException(status_code=r.status_code, detail=r.text)
     if r.headers.get("content-type", "").startswith("application/json"):
@@ -154,21 +193,31 @@ def gh_request(method: str, path: str, *, json_body: dict | None = None, params:
 def handle_github(action: str, payload: dict):
     repo = payload.get("repo")
     if not repo:
-        raise HTTPException(status_code=400, detail="repo is required for GitHub actions")
+        raise HTTPException(
+            status_code=400, detail="repo is required for GitHub actions"
+        )
 
     if action == "create_issue":
         title = payload.get("title")
         body = payload.get("body", "")
         if not title:
             raise HTTPException(status_code=400, detail="title is required")
-        return gh_request("POST", f"/repos/{repo}/issues", json_body={"title": title, "body": body})
+        return gh_request(
+            "POST", f"/repos/{repo}/issues", json_body={"title": title, "body": body}
+        )
 
     if action == "comment_issue":
         issue = payload.get("issue_number")
         comment = payload.get("comment")
         if not issue or not comment:
-            raise HTTPException(status_code=400, detail="issue_number and comment are required")
-        return gh_request("POST", f"/repos/{repo}/issues/{issue}/comments", json_body={"body": comment})
+            raise HTTPException(
+                status_code=400, detail="issue_number and comment are required"
+            )
+        return gh_request(
+            "POST",
+            f"/repos/{repo}/issues/{issue}/comments",
+            json_body={"body": comment},
+        )
 
     if action == "list_issues":
         state = payload.get("state", "open")
@@ -183,7 +232,11 @@ def handle_github(action: str, payload: dict):
         inputs = payload.get("inputs", {})
         if not workflow:
             raise HTTPException(status_code=400, detail="workflow is required")
-        return gh_request("POST", f"/repos/{repo}/actions/workflows/{workflow}/dispatches", json_body={"ref": ref, "inputs": inputs})
+        return gh_request(
+            "POST",
+            f"/repos/{repo}/actions/workflows/{workflow}/dispatches",
+            json_body={"ref": ref, "inputs": inputs},
+        )
 
     raise HTTPException(status_code=400, detail=f"Unsupported GitHub action: {action}")
 
@@ -192,7 +245,9 @@ def proxy_gateway_sheets(action: str, payload: dict):
     sheet_id = payload.get("sheet_id")
     range_name = payload.get("range_name")
     if not sheet_id or not range_name:
-        raise HTTPException(status_code=400, detail="sheet_id and range_name are required")
+        raise HTTPException(
+            status_code=400, detail="sheet_id and range_name are required"
+        )
 
     endpoint_map = {
         "sheets_append": "/sheets/append",
@@ -209,7 +264,9 @@ def proxy_gateway_sheets(action: str, payload: dict):
     if action in {"sheets_append", "sheets_update"}:
         values = payload.get("values")
         if not values:
-            raise HTTPException(status_code=400, detail="values required for append/update")
+            raise HTTPException(
+                status_code=400, detail="values required for append/update"
+            )
         payload_map["values"] = values
     return call_gateway(method, url, payload_map)
 
@@ -268,15 +325,22 @@ def call_gateway(method: str, url: str, payload: dict):
             r = requests.post(url, json=payload, timeout=30)
         if r.status_code >= 400:
             raise HTTPException(status_code=r.status_code, detail=r.text)
-        return r.json() if r.headers.get("content-type", "").startswith("application/json") else {"status": r.status_code, "body": r.text[:500]}
+        return (
+            r.json()
+            if r.headers.get("content-type", "").startswith("application/json")
+            else {"status": r.status_code, "body": r.text[:500]}
+        )
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Gateway call failed: {e}")
 
+
 def serve():
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", "8080")))
+
 
 if __name__ == "__main__":
     serve()

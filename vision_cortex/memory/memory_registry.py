@@ -3,6 +3,7 @@
 Provides production-friendly adapters with an in-memory fallback so tests and
 local runs do not require cloud credentials.
 """
+
 from __future__ import annotations
 
 import logging
@@ -27,7 +28,9 @@ class VectorStore(Protocol):
 class MemoryRegistry:
     firestore: FirestoreClient
     vector_store: VectorStore
-    logger: logging.Logger = field(default_factory=lambda: logging.getLogger("vision_cortex.memory"))
+    logger: logging.Logger = field(
+        default_factory=lambda: logging.getLogger("vision_cortex.memory")
+    )
 
     def persist_event(self, doc: Dict[str, Any]) -> None:
         try:
@@ -68,7 +71,9 @@ class InMemoryVectorStore(VectorStore):
 
     def add(self, text: str, metadata: Dict[str, Any]) -> str:
         record_id = f"vec-{len(self._records)+1}"
-        self._records.append({"id": record_id, "text": text, "metadata": metadata, "ts": time.time()})
+        self._records.append(
+            {"id": record_id, "text": text, "metadata": metadata, "ts": time.time()}
+        )
         return record_id
 
     def search(self, query: str, k: int = 5) -> Any:
@@ -102,10 +107,14 @@ def build_memory_registry() -> MemoryRegistry:
                 docs = col.stream()
                 return [d.to_dict() for d in docs]
 
-        registry = MemoryRegistry(firestore=FirestoreAdapter(), vector_store=InMemoryVectorStore())
+        registry = MemoryRegistry(
+            firestore=FirestoreAdapter(), vector_store=InMemoryVectorStore()
+        )
         registry.logger.info("Using Firestore-backed MemoryRegistry")
         return registry
     except Exception:
-        registry = MemoryRegistry(firestore=InMemoryFirestore(), vector_store=InMemoryVectorStore())
+        registry = MemoryRegistry(
+            firestore=InMemoryFirestore(), vector_store=InMemoryVectorStore()
+        )
         registry.logger.info("Using InMemory MemoryRegistry (Firestore unavailable)")
         return registry

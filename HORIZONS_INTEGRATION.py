@@ -5,7 +5,7 @@ Connects to Infinity XOS API Gateway + Cloud Run services
 """
 
 # ===== HORIZONS REACT INTEGRATION GUIDE =====
-# 
+#
 # This file documents how to integrate your Horizons React frontend
 # with the Infinity XOS backend (Google Cloud Run + Firestore)
 #

@@ -1,4 +1,5 @@
 """Predictor agent: produces forecasts from organized clusters."""
+
 from __future__ import annotations
 
 import time
@@ -11,7 +12,9 @@ from vision_cortex.schemas.contracts import Prediction
 class PredictorAgent(BaseAgent):
     role = "predictor"
 
-    def run_task(self, context: AgentContext, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def run_task(
+        self, context: AgentContext, payload: Dict[str, Any]
+    ) -> Dict[str, Any]:
         clusters = payload.get("organized", {}).get("clusters", {})
         predictions: List[Dict[str, Any]] = []
         for topic, docs in clusters.items():
@@ -26,14 +29,20 @@ class PredictorAgent(BaseAgent):
                 signals=[d.get("title", "") for d in docs][:5],
             )
             predictions.append(pred.__dict__)
-            self.log_event("Generated prediction", context, {"topic": topic, "confidence": confidence})
+            self.log_event(
+                "Generated prediction",
+                context,
+                {"topic": topic, "confidence": confidence},
+            )
         self.publish_event("predictions", context, {"count": len(predictions)})
-        self.persist_memory({
-            "type": "prediction_batch",
-            "session_hash": context.session_id,
-            "task_id": context.task_id,
-            "content": predictions,
-            "confidence": context.confidence,
-            "created_at": time.time(),
-        })
+        self.persist_memory(
+            {
+                "type": "prediction_batch",
+                "session_hash": context.session_id,
+                "task_id": context.task_id,
+                "content": predictions,
+                "confidence": context.confidence,
+                "created_at": time.time(),
+            }
+        )
         return {"predictions": predictions}

@@ -1,6 +1,11 @@
 """Tests for autonomous prompt registry and executor."""
+
 from vision_cortex.comms.message_bus import MessageBus
-from vision_cortex.memory.memory_registry import InMemoryFirestore, InMemoryVectorStore, MemoryRegistry
+from vision_cortex.memory.memory_registry import (
+    InMemoryFirestore,
+    InMemoryVectorStore,
+    MemoryRegistry,
+)
 from vision_cortex.prompts import ALIASES, PROMPT_REGISTRY, list_prompts, resolve_alias
 from vision_cortex.prompts.executor import PromptExecutor
 
@@ -31,7 +36,9 @@ def test_list_prompts_by_tag():
 
 def test_executor_runs_prompt():
     bus = MessageBus()
-    memory = MemoryRegistry(firestore=InMemoryFirestore(), vector_store=InMemoryVectorStore())
+    memory = MemoryRegistry(
+        firestore=InMemoryFirestore(), vector_store=InMemoryVectorStore()
+    )
     executor = PromptExecutor(bus=bus, memory=memory)
 
     result = executor.execute("scan", confidence=0.9)
@@ -42,7 +49,9 @@ def test_executor_runs_prompt():
 
 def test_executor_defers_low_confidence_auto():
     bus = MessageBus()
-    memory = MemoryRegistry(firestore=InMemoryFirestore(), vector_store=InMemoryVectorStore())
+    memory = MemoryRegistry(
+        firestore=InMemoryFirestore(), vector_store=InMemoryVectorStore()
+    )
     executor = PromptExecutor(bus=bus, memory=memory)
 
     # L9_AUTO_PREDICT requires 0.85 confidence

@@ -4,6 +4,7 @@
 - Allows chat threads to publish messages back onto the internal bus.
 - Supports fan-out to multiple thread_ids; uses governance-aware payloads.
 """
+
 from __future__ import annotations
 
 import logging
@@ -15,7 +16,12 @@ from vision_cortex.validators.safety import enforce_governance
 
 
 class PubSubBridge:
-    def __init__(self, bus: MessageBus, memory: MemoryRegistry, thread_ids: Optional[Iterable[str]] = None) -> None:
+    def __init__(
+        self,
+        bus: MessageBus,
+        memory: MemoryRegistry,
+        thread_ids: Optional[Iterable[str]] = None,
+    ) -> None:
         self.bus = bus
         self.memory = memory
         self.thread_ids = set(thread_ids or [])
@@ -41,12 +47,16 @@ class PubSubBridge:
         except Exception as exc:
             self.logger.error("Failed to persist bus log: %s", exc)
 
-    def send_to_bus(self, topic: str, payload: Dict[str, Any], governance_level: str = "HIGH") -> None:
+    def send_to_bus(
+        self, topic: str, payload: Dict[str, Any], governance_level: str = "HIGH"
+    ) -> None:
         payload = dict(payload)
         payload["governance_level"] = enforce_governance(governance_level)
         self.bus.publish(topic, payload)
 
-    def send_to_threads(self, payload: Dict[str, Any], governance_level: str = "HIGH") -> None:
+    def send_to_threads(
+        self, payload: Dict[str, Any], governance_level: str = "HIGH"
+    ) -> None:
         governance = enforce_governance(governance_level)
         record = {
             "type": "chat_thread_message",

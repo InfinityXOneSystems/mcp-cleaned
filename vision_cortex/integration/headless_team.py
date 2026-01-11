@@ -4,13 +4,15 @@ Provides a small registry of headless agent descriptors and a helper to
 perform a safe, polite fetch (httpx fallback). This module intentionally
 keeps dependencies minimal so it can run in environments without Playwright.
 """
+
 from __future__ import annotations
 
 import time
 import urllib.robotparser
-from typing import Dict, List, Optional
-import httpx
 from dataclasses import dataclass
+from typing import Dict, List
+
+import httpx
 
 
 @dataclass
@@ -22,9 +24,21 @@ class HeadlessAgentDesc:
 
 def init_headless_team() -> List[HeadlessAgentDesc]:
     return [
-        HeadlessAgentDesc(name="headless_crawler_a", description="Lightweight HTTP fetcher", capabilities=["http"]),
-        HeadlessAgentDesc(name="headless_crawler_b", description="Rendered page preview (Playwright optional)", capabilities=["http", "render"]),
-        HeadlessAgentDesc(name="headless_crawler_c", description="Fast fetch + metadata extractor", capabilities=["http", "meta"]),
+        HeadlessAgentDesc(
+            name="headless_crawler_a",
+            description="Lightweight HTTP fetcher",
+            capabilities=["http"],
+        ),
+        HeadlessAgentDesc(
+            name="headless_crawler_b",
+            description="Rendered page preview (Playwright optional)",
+            capabilities=["http", "render"],
+        ),
+        HeadlessAgentDesc(
+            name="headless_crawler_c",
+            description="Fast fetch + metadata extractor",
+            capabilities=["http", "meta"],
+        ),
     ]
 
 
@@ -41,7 +55,9 @@ def allowed_by_robots(url: str, user_agent: str = "MCPHeadlessBot/1.0") -> bool:
         return False
 
 
-def fetch_url(url: str, timeout: int = 15, user_agent: str = "MCPHeadlessBot/1.0") -> Dict:
+def fetch_url(
+    url: str, timeout: int = 15, user_agent: str = "MCPHeadlessBot/1.0"
+) -> Dict:
     result = {
         "url": url,
         "status": "error",
@@ -53,7 +69,9 @@ def fetch_url(url: str, timeout: int = 15, user_agent: str = "MCPHeadlessBot/1.0
     start = time.time()
     headers = {"User-Agent": user_agent}
     try:
-        with httpx.Client(timeout=timeout, headers=headers, follow_redirects=True) as client:
+        with httpx.Client(
+            timeout=timeout, headers=headers, follow_redirects=True
+        ) as client:
             r = client.get(url)
             result["http_status"] = r.status_code
             result["content_length"] = len(r.content or b"")

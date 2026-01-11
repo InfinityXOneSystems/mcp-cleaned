@@ -2,13 +2,14 @@
 
 Replace with Prometheus/OpenTelemetry integrations in production.
 """
+
 from __future__ import annotations
 
-import logging
-from collections import defaultdict
-from typing import Dict, Any
-import os
 import json
+import logging
+import os
+from collections import defaultdict
+from typing import Any, Dict
 
 _REDIS_URL = os.environ.get("REDIS_URL") or os.environ.get("CELERY_BROKER_URL")
 _redis = None
@@ -40,17 +41,26 @@ class SimpleMetrics:
 metrics = SimpleMetrics()
 
 try:
-    from prometheus_client import CollectorRegistry, Counter, generate_latest, CONTENT_TYPE_LATEST
+    from prometheus_client import CollectorRegistry, Counter
+
     PROM_REGISTRY = CollectorRegistry()
-    PROM_DISPATCH_QUICK = Counter('dispatch_quick_total', 'Quick dispatches', registry=PROM_REGISTRY)
-    PROM_ENQUEUE_LONG = Counter('enqueue_long_total', 'Long task enqueues', registry=PROM_REGISTRY)
+    PROM_DISPATCH_QUICK = Counter(
+        "dispatch_quick_total", "Quick dispatches", registry=PROM_REGISTRY
+    )
+    PROM_ENQUEUE_LONG = Counter(
+        "enqueue_long_total", "Long task enqueues", registry=PROM_REGISTRY
+    )
     PROM_TASK_LATENCY = None
     PROM_QUEUE_DEPTH = None
     try:
-        from prometheus_client import Histogram, Gauge
+        from prometheus_client import Gauge, Histogram
 
-        PROM_TASK_LATENCY = Histogram('task_latency_seconds', 'Long task latency seconds', registry=PROM_REGISTRY)
-        PROM_QUEUE_DEPTH = Gauge('task_queue_depth', 'Task queue depth (approx)', registry=PROM_REGISTRY)
+        PROM_TASK_LATENCY = Histogram(
+            "task_latency_seconds", "Long task latency seconds", registry=PROM_REGISTRY
+        )
+        PROM_QUEUE_DEPTH = Gauge(
+            "task_queue_depth", "Task queue depth (approx)", registry=PROM_REGISTRY
+        )
     except Exception:
         PROM_TASK_LATENCY = None
         PROM_QUEUE_DEPTH = None
@@ -58,6 +68,7 @@ except Exception:
     PROM_REGISTRY = None
     PROM_DISPATCH_QUICK = None
     PROM_ENQUEUE_LONG = None
+
 
 # In-process task store for immediate tasks (task_id -> result/status)
 def _redis_key(task_id: str) -> str:
@@ -86,6 +97,7 @@ def get_task(task_id: str) -> Dict[str, Any] | None:
         except Exception:
             logger.exception("Failed to read task from Redis; checking in-memory store")
     return _INPROC_TASK_STORE.get(task_id)
+
 
 # Keep in-memory store as fallback
 _INPROC_TASK_STORE: Dict[str, Dict[str, Any]] = {}

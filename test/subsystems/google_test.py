@@ -1,5 +1,7 @@
 import os
+
 from google.oauth2 import service_account
+
 
 def run():
     path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
@@ -8,7 +10,7 @@ def run():
             "name": "google",
             "status": "skipped",
             "checks": [{"check": "credentials_present", "result": False}],
-            "note": "GOOGLE_APPLICATION_CREDENTIALS not set or file missing"
+            "note": "GOOGLE_APPLICATION_CREDENTIALS not set or file missing",
         }
 
     checks = []
@@ -16,7 +18,12 @@ def run():
     try:
         creds = service_account.Credentials.from_service_account_file(path)
         checks.append({"check": "load_service_account", "result": True})
-        checks.append({"check": "project_id", "result": getattr(creds, "project_id", None) is not None})
+        checks.append(
+            {
+                "check": "project_id",
+                "result": getattr(creds, "project_id", None) is not None,
+            }
+        )
     except Exception as e:
         status = "fail"
         checks.append({"check": "exception", "result": str(e)})

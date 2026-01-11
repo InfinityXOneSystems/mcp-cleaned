@@ -7,7 +7,9 @@ def ensure_dir(path: str):
     os.makedirs(path, exist_ok=True)
 
 
-def write_json_record(base_dir: str, relative_dir: str, base_name: str, payload: dict) -> str:
+def write_json_record(
+    base_dir: str, relative_dir: str, base_name: str, payload: dict
+) -> str:
     """Write a timestamped JSON record under base_dir/relative_dir/base_name_YYYYMMDD_HHMMSS.json"""
     ensure_dir(os.path.join(base_dir, relative_dir))
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")

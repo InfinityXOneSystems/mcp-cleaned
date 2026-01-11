@@ -1,6 +1,6 @@
 import sqlite3
 
-conn = sqlite3.connect('mcp_memory.db')
+conn = sqlite3.connect("mcp_memory.db")
 cur = conn.cursor()
 
 print("\n📁 MEMORY STORAGE LOCATION")
@@ -28,13 +28,15 @@ print(f"  Total records: {total_records:,}")
 print()
 
 # Top namespaces
-cur.execute("""
+cur.execute(
+    """
     SELECT namespace, COUNT(*) as count 
     FROM memory 
     GROUP BY namespace 
     ORDER BY count DESC 
     LIMIT 15
-""")
+"""
+)
 print("  Top 15 namespaces by record count:")
 for row in cur.fetchall():
     print(f"    {row[0]:<30} {row[1]:>6,} records")
@@ -43,12 +45,14 @@ print()
 # Jobs table
 print("⚙️  JOBS TABLE (crawl tasks):")
 print("-" * 60)
-cur.execute("""
+cur.execute(
+    """
     SELECT status, COUNT(*) as count
     FROM jobs
     GROUP BY status
     ORDER BY count DESC
-""")
+"""
+)
 for row in cur.fetchall():
     print(f"  {row[0]:<15} {row[1]:>4} jobs")
 print()
@@ -60,11 +64,13 @@ print("🔮 PREDICTIONS TABLE (asset predictions):")
 print("-" * 60)
 print(f"  Total predictions: {pred_count}")
 if pred_count > 0:
-    cur.execute("""
+    cur.execute(
+        """
         SELECT status, COUNT(*) 
         FROM predictions 
         GROUP BY status
-    """)
+    """
+    )
     for row in cur.fetchall():
         print(f"    {row[0]}: {row[1]}")
 

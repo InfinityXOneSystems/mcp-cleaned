@@ -1,14 +1,19 @@
-import json, os
+import json
+import os
 from datetime import datetime
 
-BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "records", "maintain", "auto_evolve"))
+BASE = os.path.abspath(
+    os.path.join(
+        os.path.dirname(__file__), "..", "..", "records", "maintain", "auto_evolve"
+    )
+)
 os.makedirs(BASE, exist_ok=True)
 
 payload = {
     "module": "auto_evolve",
     "timestamp": datetime.now().isoformat(),
     "status": "success",
-    "evolution": ["Generated roadmap for next iteration"]
+    "evolution": ["Generated roadmap for next iteration"],
 }
 
 out = os.path.join(BASE, f"auto_evolve_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")

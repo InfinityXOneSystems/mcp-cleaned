@@ -1,19 +1,17 @@
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import JSONResponse
-import httpx
-import os
-import databases
-import sqlalchemy
-import json
-import threading
-import pyttsx3
 import base64
-import google.auth
-from google.cloud import texttospeech
-from google.cloud import secretmanager
-import tempfile
+import json
+import os
 import pathlib
-from urllib.parse import urlparse
+import tempfile
+import threading
+
+import databases
+import httpx
+import pyttsx3
+import sqlalchemy
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
+from google.cloud import secretmanager, texttospeech
 
 from crawler import crawl
 from safety import (
@@ -29,6 +27,7 @@ app = FastAPI(title="Infinity XOS Meta Service")
 API_KEY = os.environ.get("MCP_API_KEY")
 rate_limiter = RateLimiter()
 ALLOWED_HTTP_METHODS = {"GET", "POST", "HEAD"}
+
 
 def check_auth(request: Request):
     auth = request.headers.get("authorization")
@@ -52,9 +51,14 @@ async def validate_outbound_url(url: str) -> str:
 
 
 def sanitize_headers(headers: dict) -> dict:
-    cleaned = {k: v for k, v in headers.items() if k.lower() not in {"host", "authorization", "user-agent"}}
+    cleaned = {
+        k: v
+        for k, v in headers.items()
+        if k.lower() not in {"host", "authorization", "user-agent"}
+    }
     cleaned["User-Agent"] = SCRAPER_USER_AGENT
     return cleaned
+
 
 DB_PATH = os.environ.get("MCP_MEMORY_DB", "sqlite:///./mcp_memory.db")
 database = databases.Database(DB_PATH)
@@ -79,13 +83,24 @@ job_table = sqlalchemy.Table(
     sqlalchemy.Column("payload", sqlalchemy.Text),
     sqlalchemy.Column("status", sqlalchemy.String, default="pending", index=True),
     sqlalchemy.Column("result", sqlalchemy.Text, nullable=True),
-    sqlalchemy.Column("created_at", sqlalchemy.DateTime, server_default=sqlalchemy.func.now()),
-    sqlalchemy.Column("updated_at", sqlalchemy.DateTime, server_default=sqlalchemy.func.now(), onupdate=sqlalchemy.func.now()),
+    sqlalchemy.Column(
+        "created_at", sqlalchemy.DateTime, server_default=sqlalchemy.func.now()
+    ),
+    sqlalchemy.Column(
+        "updated_at",
+        sqlalchemy.DateTime,
+        server_default=sqlalchemy.func.now(),
+        onupdate=sqlalchemy.func.now(),
+    ),
 )
 
 
-engine = sqlalchemy.create_engine(DB_PATH.replace("sqlite:///", "sqlite:///"), connect_args={"check_same_thread": False})
+engine = sqlalchemy.create_engine(
+    DB_PATH.replace("sqlite:///", "sqlite:///"),
+    connect_args={"check_same_thread": False},
+)
 metadata.create_all(engine)
+
 
 @app.on_event("startup")
 async def startup():
@@ -114,11 +129,22 @@ async def memory_set(request: Request):
 @app.get("/memory/get")
 async def memory_get(request: Request, key: str, namespace: str = "default"):
     check_auth(request)
-    query = memory_table.select().where(memory_table.c.key == key).where(memory_table.c.namespace == namespace)
+    query = (
+        memory_table.select()
+        .where(memory_table.c.key == key)
+        .where(memory_table.c.namespace == namespace)
+    )
     row = await database.fetch_one(query)
     if not row:
         raise HTTPException(status_code=404, detail="Not found")
-    return JSONResponse({"id": row["id"], "namespace": row["namespace"], "key": row["key"], "value": json.loads(row["value"])})
+    return JSONResponse(
+        {
+            "id": row["id"],
+            "namespace": row["namespace"],
+            "key": row["key"],
+            "value": json.loads(row["value"]),
+        }
+    )
 
 
 @app.post("/memory/list")
@@ -128,7 +154,12 @@ async def memory_list(request: Request):
     namespace = body.get("namespace", "default")
     q = memory_table.select().where(memory_table.c.namespace == namespace)
     rows = await database.fetch_all(q)
-    return JSONResponse([{"id": r["id"], "key": r["key"], "value": json.loads(r["value"])} for r in rows])
+    return JSONResponse(
+        [
+            {"id": r["id"], "key": r["key"], "value": json.loads(r["value"])}
+            for r in rows
+        ]
+    )
 
 
 @app.post("/omni")
@@ -149,15 +180,29 @@ async def omni_gateway(request: Request):
             # Call internal endpoint
             url = f"http://127.0.0.1:8000/memory/get?key={key}&namespace={namespace}"
             async with httpx.AsyncClient() as client:
-                r = await client.get(url, headers={"authorization": request.headers.get("authorization")})
+                r = await client.get(
+                    url, headers={"authorization": request.headers.get("authorization")}
+                )
                 return JSONResponse(r.json(), status_code=r.status_code)
         elif act == "set":
             async with httpx.AsyncClient() as client:
-                r = await client.post("http://127.0.0.1:8000/memory/set", json={"namespace": body.get("namespace","default"), "key": body.get("key"), "value": body.get("value")}, headers={"authorization": request.headers.get("authorization")})
+                r = await client.post(
+                    "http://127.0.0.1:8000/memory/set",
+                    json={
+                        "namespace": body.get("namespace", "default"),
+                        "key": body.get("key"),
+                        "value": body.get("value"),
+                    },
+                    headers={"authorization": request.headers.get("authorization")},
+                )
                 return JSONResponse(r.json(), status_code=r.status_code)
         elif act == "list":
             async with httpx.AsyncClient() as client:
-                r = await client.post("http://127.0.0.1:8000/memory/list", json={"namespace": body.get("namespace","default")}, headers={"authorization": request.headers.get("authorization")})
+                r = await client.post(
+                    "http://127.0.0.1:8000/memory/list",
+                    json={"namespace": body.get("namespace", "default")},
+                    headers={"authorization": request.headers.get("authorization")},
+                )
                 return JSONResponse(r.json(), status_code=r.status_code)
         else:
             raise HTTPException(status_code=400, detail="Unknown memory action")
@@ -165,12 +210,30 @@ async def omni_gateway(request: Request):
         # fallback: proxy to meta endpoints (meta prefix mapping)
         target = body.get("target")
         if not target:
-            raise HTTPException(status_code=400, detail="Missing 'target' for non-memory actions")
+            raise HTTPException(
+                status_code=400, detail="Missing 'target' for non-memory actions"
+            )
         async with httpx.AsyncClient() as client:
-            method = body.get("method","POST")
-            r = await client.request(method, target, json=body.get("payload", {}), headers={"authorization": request.headers.get("authorization")})
-            return JSONResponse({"status_code": r.status_code, "body": r.json() if r.headers.get("content-type","" ).startswith("application/json") else r.text}, status_code=r.status_code)
-
+            method = body.get("method", "POST")
+            r = await client.request(
+                method,
+                target,
+                json=body.get("payload", {}),
+                headers={"authorization": request.headers.get("authorization")},
+            )
+            return JSONResponse(
+                {
+                    "status_code": r.status_code,
+                    "body": (
+                        r.json()
+                        if r.headers.get("content-type", "").startswith(
+                            "application/json"
+                        )
+                        else r.text
+                    ),
+                },
+                status_code=r.status_code,
+            )
 
 
 def _speak_sync(text: str):
@@ -193,7 +256,6 @@ async def voice_speak(request: Request):
     return JSONResponse({"status": "queued", "text_length": len(text)})
 
 
-
 @app.post("/voice/sol")
 async def voice_sol(request: Request):
     """Synthesize speech using Google Cloud Text-to-Speech and return base64-encoded audio.
@@ -202,7 +264,7 @@ async def voice_sol(request: Request):
     check_auth(request)
     body = await request.json()
     text = body.get("text")
-    voice_name = body.get("voice","en-US-Wavenet-D")
+    voice_name = body.get("voice", "en-US-Wavenet-D")
     speaking_rate = float(body.get("speaking_rate", 1.0))
     pitch = float(body.get("pitch", 0.0))
     if not text:
@@ -211,15 +273,26 @@ async def voice_sol(request: Request):
     try:
         client = texttospeech.TextToSpeechClient()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to initialize Google TTS client: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to initialize Google TTS client: {e}"
+        )
     synthesis_input = texttospeech.SynthesisInput(text=text)
-    voice = texttospeech.VoiceSelectionParams(language_code=voice_name.split('-')[0] if '-' in voice_name else 'en-US', name=voice_name)
-    audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3, speaking_rate=speaking_rate, pitch=pitch)
+    voice = texttospeech.VoiceSelectionParams(
+        language_code=voice_name.split("-")[0] if "-" in voice_name else "en-US",
+        name=voice_name,
+    )
+    audio_config = texttospeech.AudioConfig(
+        audio_encoding=texttospeech.AudioEncoding.MP3,
+        speaking_rate=speaking_rate,
+        pitch=pitch,
+    )
     try:
-        response = client.synthesize_speech(input=synthesis_input, voice=voice, audio_config=audio_config)
+        response = client.synthesize_speech(
+            input=synthesis_input, voice=voice, audio_config=audio_config
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"TTS synth failed: {e}")
-    b64 = base64.b64encode(response.audio_content).decode('ascii')
+    b64 = base64.b64encode(response.audio_content).decode("ascii")
     return JSONResponse({"audio_base64": b64, "encoding": "mp3"})
 
 
@@ -230,10 +303,15 @@ async def github_sync(request: Request):
     body = await request.json()
     token = body.get("token")
     if not token:
-        raise HTTPException(status_code=400, detail="Missing GitHub token in body.token")
-    headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github+json"}
+        raise HTTPException(
+            status_code=400, detail="Missing GitHub token in body.token"
+        )
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github+json",
+    }
     async with httpx.AsyncClient(timeout=30.0) as client:
-        r = await client.get('https://api.github.com/user/repos', headers=headers)
+        r = await client.get("https://api.github.com/user/repos", headers=headers)
         try:
             r.raise_for_status()
         except httpx.HTTPStatusError:
@@ -241,7 +319,6 @@ async def github_sync(request: Request):
         repos = r.json()
     # Optionally you could sync contents to a local store or trigger webhooks; here we just return the list.
     return JSONResponse({"count": len(repos), "repos": repos})
-
 
 
 @app.post("/gcp/load_service_account")
@@ -260,20 +337,19 @@ async def gcp_load_service_account(request: Request):
         # Access the latest version
         name = f"{secret_name}/versions/latest"
         response = client.access_secret_version(request={"name": name})
-        payload = response.payload.data.decode('utf-8')
+        payload = response.payload.data.decode("utf-8")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to access secret: {e}")
     # write to temp file
     try:
-        td = tempfile.mkdtemp(prefix='gcp_sa_')
-        p = pathlib.Path(td) / 'service_account.json'
+        td = tempfile.mkdtemp(prefix="gcp_sa_")
+        p = pathlib.Path(td) / "service_account.json"
         p.write_text(payload)
         # set environment var for this process
-        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = str(p)
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(p)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to write credentials: {e}")
     return JSONResponse({"path": str(p)})
-
 
 
 @app.post("/jobs/enqueue")
@@ -285,7 +361,9 @@ async def jobs_enqueue(request: Request):
     payload = body.get("payload", {})
     if not jtype or not action:
         raise HTTPException(status_code=400, detail="Missing 'type' or 'action'")
-    q = job_table.insert().values(type=jtype, action=action, payload=json.dumps(payload), status='pending')
+    q = job_table.insert().values(
+        type=jtype, action=action, payload=json.dumps(payload), status="pending"
+    )
     job_id = await database.execute(q)
     return JSONResponse({"job_id": job_id, "status": "queued"})
 
@@ -307,7 +385,9 @@ async def memory_rehydrate(request: Request):
             val = r["value"]
         pieces.append(f"Key: {r['key']}\nValue: {json.dumps(val)}")
     context = "\n---\n".join(pieces)
-    return JSONResponse({"namespace": namespace, "count": len(pieces), "context": context})
+    return JSONResponse(
+        {"namespace": namespace, "count": len(pieces), "context": context}
+    )
 
 
 @app.post("/gpt/rehydrate")
@@ -322,7 +402,11 @@ async def gpt_rehydrate(request: Request):
     user_prompt = body.get("prompt", "")
     mem_limit = int(body.get("mem_limit", 50))
     # reuse memory rehydration
-    q = memory_table.select().where(memory_table.c.namespace == namespace).limit(mem_limit)
+    q = (
+        memory_table.select()
+        .where(memory_table.c.namespace == namespace)
+        .limit(mem_limit)
+    )
     rows = await database.fetch_all(q)
     memory_texts = []
     for r in rows:
@@ -339,10 +423,13 @@ async def gpt_rehydrate(request: Request):
         messages.append({"role": "system", "content": f"Memory:\n{memory_block}"})
     if user_prompt:
         messages.append({"role": "user", "content": user_prompt})
-    return JSONResponse({"messages": messages, "namespace": namespace, "memory_count": len(memory_texts)})
-
-
- 
+    return JSONResponse(
+        {
+            "messages": messages,
+            "namespace": namespace,
+            "memory_count": len(memory_texts),
+        }
+    )
 
 
 @app.get("/health")
@@ -354,40 +441,46 @@ async def health():
 async def predictions_export():
     """Export all predictions for dashboard"""
     import sqlite3
-    conn = sqlite3.connect('mcp_memory.db')
+
+    conn = sqlite3.connect("mcp_memory.db")
     cur = conn.cursor()
-    
+
     # Get all predictions
-    cur.execute("""
+    cur.execute(
+        """
         SELECT id, asset, asset_type, prediction_type, timeframe, target_date,
                predicted_value, predicted_direction, confidence, rationale,
                status, outcome, accuracy_score, made_at, resolved_at
         FROM predictions
         ORDER BY made_at DESC
-    """)
-    
+    """
+    )
+
     predictions = []
     for row in cur.fetchall():
-        predictions.append({
-            'id': row[0],
-            'asset': row[1],
-            'asset_type': row[2],
-            'prediction_type': row[3],
-            'timeframe': row[4],
-            'target_date': row[5],
-            'predicted_value': row[6],
-            'predicted_direction': row[7],
-            'confidence': row[8],
-            'rationale': row[9],
-            'status': row[10],
-            'outcome': row[11],
-            'accuracy_score': row[12],
-            'made_at': row[13],
-            'resolved_at': row[14]
-        })
-    
+        predictions.append(
+            {
+                "id": row[0],
+                "asset": row[1],
+                "asset_type": row[2],
+                "prediction_type": row[3],
+                "timeframe": row[4],
+                "target_date": row[5],
+                "predicted_value": row[6],
+                "predicted_direction": row[7],
+                "confidence": row[8],
+                "rationale": row[9],
+                "status": row[10],
+                "outcome": row[11],
+                "accuracy_score": row[12],
+                "made_at": row[13],
+                "resolved_at": row[14],
+            }
+        )
+
     # Get stats
-    cur.execute("""
+    cur.execute(
+        """
         SELECT 
             COUNT(*) as total,
             SUM(CASE WHEN status = 'resolved' THEN 1 ELSE 0 END) as resolved,
@@ -396,28 +489,26 @@ async def predictions_export():
             AVG(CASE WHEN status = 'resolved' THEN accuracy_score ELSE NULL END) as avg_score,
             AVG(confidence) as avg_confidence
         FROM predictions
-    """)
-    
+    """
+    )
+
     row = cur.fetchone()
     total, resolved, correct, partial, avg_score, avg_conf = row
-    
+
     stats = {
-        'total_predictions': total or 0,
-        'resolved': resolved or 0,
-        'pending': (total or 0) - (resolved or 0),
-        'correct': correct or 0,
-        'partial': partial or 0,
-        'accuracy_rate': (correct / resolved * 100) if resolved else 0,
-        'avg_accuracy_score': avg_score or 0,
-        'avg_confidence': avg_conf or 0
+        "total_predictions": total or 0,
+        "resolved": resolved or 0,
+        "pending": (total or 0) - (resolved or 0),
+        "correct": correct or 0,
+        "partial": partial or 0,
+        "accuracy_rate": (correct / resolved * 100) if resolved else 0,
+        "avg_accuracy_score": avg_score or 0,
+        "avg_confidence": avg_conf or 0,
     }
-    
+
     conn.close()
-    
-    return JSONResponse({
-        'predictions': predictions,
-        'stats': stats
-    })
+
+    return JSONResponse({"predictions": predictions, "stats": stats})
 
 
 @app.get("/health")
@@ -431,13 +522,20 @@ async def create_github_repo(request: Request):
     body = await request.json()
     gh_token = body.get("token")
     if not gh_token:
-        raise HTTPException(status_code=400, detail="Missing GitHub token in body.token")
+        raise HTTPException(
+            status_code=400, detail="Missing GitHub token in body.token"
+        )
     name = body.get("name")
     if not name:
-        raise HTTPException(status_code=400, detail="Missing repository name in body.name")
+        raise HTTPException(
+            status_code=400, detail="Missing repository name in body.name"
+        )
     org = body.get("org")
     private = body.get("private", True)
-    headers = {"Authorization": f"token {gh_token}", "Accept": "application/vnd.github+json"}
+    headers = {
+        "Authorization": f"token {gh_token}",
+        "Accept": "application/vnd.github+json",
+    }
     async with httpx.AsyncClient(timeout=30.0) as client:
         if org:
             url = f"https://api.github.com/orgs/{org}/repos"
@@ -457,8 +555,14 @@ async def list_github_repos(request: Request, org: str | None = None):
     check_auth(request)
     token = request.headers.get("x-github-token") or request.query_params.get("token")
     if not token:
-        raise HTTPException(status_code=400, detail="Provide GitHub token via header 'X-GitHub-Token' or query param 'token'")
-    headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github+json"}
+        raise HTTPException(
+            status_code=400,
+            detail="Provide GitHub token via header 'X-GitHub-Token' or query param 'token'",
+        )
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github+json",
+    }
     async with httpx.AsyncClient(timeout=30.0) as client:
         if org:
             url = f"https://api.github.com/orgs/{org}/repos"
@@ -477,7 +581,10 @@ async def gcloud_projects(request: Request):
     check_auth(request)
     token = request.headers.get("x-gcloud-token") or request.query_params.get("token")
     if not token:
-        raise HTTPException(status_code=400, detail="Provide GCloud OAuth2 access token via header 'X-GCloud-Token' or query param 'token'")
+        raise HTTPException(
+            status_code=400,
+            detail="Provide GCloud OAuth2 access token via header 'X-GCloud-Token' or query param 'token'",
+        )
     headers = {"Authorization": f"Bearer {token}"}
     async with httpx.AsyncClient(timeout=30.0) as client:
         url = "https://cloudresourcemanager.googleapis.com/v1/projects"
@@ -499,7 +606,10 @@ async def cloudrun_create(request: Request):
     service_id = body.get("service_id")
     service_body = body.get("service")
     if not token or not project or not service_id or not service_body:
-        raise HTTPException(status_code=400, detail="Missing required fields: token, project, service_id, service")
+        raise HTTPException(
+            status_code=400,
+            detail="Missing required fields: token, project, service_id, service",
+        )
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     url = f"https://run.googleapis.com/v1/projects/{project}/locations/{region}/services?serviceId={service_id}"
     async with httpx.AsyncClient(timeout=60.0) as client:
@@ -525,7 +635,17 @@ async def proxy(request: Request):
     safe_headers = sanitize_headers(headers or {})
     async with httpx.AsyncClient(timeout=60.0) as client:
         r = await client.request(method, url, headers=safe_headers, json=data)
-        return JSONResponse({"status_code": r.status_code, "headers": dict(r.headers), "body": r.json() if r.headers.get("content-type", "").startswith("application/json") else r.text})
+        return JSONResponse(
+            {
+                "status_code": r.status_code,
+                "headers": dict(r.headers),
+                "body": (
+                    r.json()
+                    if r.headers.get("content-type", "").startswith("application/json")
+                    else r.text
+                ),
+            }
+        )
 
 
 @app.post("/scrape")
@@ -545,7 +665,11 @@ async def scrape_endpoint(request: Request):
     if save:
         ns = body.get("namespace", "scrapes")
         key = body.get("key") or result["url"]
-        query = memory_table.insert().values(namespace=ns, key=key, value=json.dumps({"url": result["url"], "text": result["text"]}))
+        query = memory_table.insert().values(
+            namespace=ns,
+            key=key,
+            value=json.dumps({"url": result["url"], "text": result["text"]}),
+        )
         await database.execute(query)
     return JSONResponse(result)
 
@@ -562,7 +686,9 @@ async def add_keyword_plugin(request: Request):
     keywords = body.get("keywords", [])
     action = body.get("action")
     if not name or not keywords or not action:
-        raise HTTPException(status_code=400, detail="Missing fields: name, keywords, action")
+        raise HTTPException(
+            status_code=400, detail="Missing fields: name, keywords, action"
+        )
     keyword_plugins[name] = {"keywords": keywords, "action": action}
     return JSONResponse({"status": "ok", "plugin": name})
 
@@ -588,13 +714,19 @@ async def crawl_enqueue(request: Request):
     if start_host and start_host not in allowed:
         allowed.append(start_host)
     # Run crawl synchronously here for demo; in production enqueue as background job
-    results = await crawl(start, max_pages=max_pages, max_depth=max_depth, allowed_domains=allowed)
+    results = await crawl(
+        start, max_pages=max_pages, max_depth=max_depth, allowed_domains=allowed
+    )
     # Optionally store to memory
     if save:
         ns = body.get("namespace", "crawls")
         for r in results:
             key = r["url"]
-            q = memory_table.insert().values(namespace=ns, key=key, value=json.dumps({"url": r["url"], "html": r["html"]}))
+            q = memory_table.insert().values(
+                namespace=ns,
+                key=key,
+                value=json.dumps({"url": r["url"], "html": r["html"]}),
+            )
             await database.execute(q)
     # Run keyword plugins on crawled pages
     matches = []
@@ -603,30 +735,40 @@ async def crawl_enqueue(request: Request):
         for name, p in keyword_plugins.items():
             for kw in p["keywords"]:
                 if kw.lower() in text.lower():
-                    matches.append({"url": r["url"], "plugin": name, "keyword": kw, "action": p["action"]})
+                    matches.append(
+                        {
+                            "url": r["url"],
+                            "plugin": name,
+                            "keyword": kw,
+                            "action": p["action"],
+                        }
+                    )
     return JSONResponse({"count": len(results), "matches": matches})
 
 
 # ===== UNIFIED ENDPOINTS FOR GATEWAY COMPATIBILITY =====
 
+
 @app.post("/api/predict")
-async def predict_endpoint(asset: str = None, prediction_type: str = "price", confidence: int = 50):
+async def predict_endpoint(
+    asset: str = None, prediction_type: str = "price", confidence: int = 50
+):
     """Predict endpoint - historical pattern analysis"""
     conn = databases.Database(DB_PATH)
     await conn.connect()
-    
+
     try:
         # Query historical predictions
         query = "SELECT COUNT(*) FROM predictions WHERE status = 'pending'"
         pending_predictions = await conn.fetch_val(query)
-        
+
         return {
-            'success': True,
-            'asset': asset,
-            'prediction_type': prediction_type,
-            'confidence': confidence,
-            'pending_predictions': pending_predictions,
-            'source': 'meta'
+            "success": True,
+            "asset": asset,
+            "prediction_type": prediction_type,
+            "confidence": confidence,
+            "pending_predictions": pending_predictions,
+            "source": "meta",
         }
     finally:
         await conn.disconnect()
@@ -637,7 +779,7 @@ async def crawl_endpoint(url: str = None, depth: int = 1):
     """Crawl endpoint - metadata and job management"""
     conn = databases.Database(DB_PATH)
     await conn.connect()
-    
+
     try:
         # Create crawl job
         query = """
@@ -648,17 +790,17 @@ async def crawl_endpoint(url: str = None, depth: int = 1):
             "type": "crawl",
             "action": "url_crawl",
             "payload": json.dumps({"url": url, "depth": depth}),
-            "status": "pending"
+            "status": "pending",
         }
         job_id = await conn.execute(query, values)
-        
+
         return {
-            'success': True,
-            'job_id': job_id,
-            'url': url,
-            'depth': depth,
-            'status': 'queued',
-            'source': 'meta'
+            "success": True,
+            "job_id": job_id,
+            "url": url,
+            "depth": depth,
+            "status": "queued",
+            "source": "meta",
         }
     finally:
         await conn.disconnect()
@@ -669,7 +811,7 @@ async def simulate_endpoint(scenario: str, parameters: dict = None):
     """Simulate endpoint - scenario job creation"""
     conn = databases.Database(DB_PATH)
     await conn.connect()
-    
+
     try:
         # Create simulation job
         query = """
@@ -680,16 +822,16 @@ async def simulate_endpoint(scenario: str, parameters: dict = None):
             "type": "simulate",
             "action": scenario,
             "payload": json.dumps(parameters or {}),
-            "status": "pending"
+            "status": "pending",
         }
         job_id = await conn.execute(query, values)
-        
+
         return {
-            'success': True,
-            'job_id': job_id,
-            'scenario': scenario,
-            'status': 'queued',
-            'source': 'meta'
+            "success": True,
+            "job_id": job_id,
+            "scenario": scenario,
+            "status": "queued",
+            "source": "meta",
         }
     finally:
         await conn.disconnect()
@@ -700,22 +842,24 @@ async def read_endpoint(resource: str):
     """Unified read endpoint"""
     conn = databases.Database(DB_PATH)
     await conn.connect()
-    
+
     try:
-        if resource == 'memory':
+        if resource == "memory":
             query = "SELECT key, value FROM memory LIMIT 100"
             rows = await conn.fetch(query)
             return {"resource": resource, "count": len(rows), "data": rows}
-        elif resource == 'jobs':
+        elif resource == "jobs":
             query = "SELECT * FROM jobs ORDER BY created_at DESC LIMIT 50"
             rows = await conn.fetch(query)
             return {"resource": resource, "count": len(rows), "data": rows}
-        elif resource == 'predictions':
+        elif resource == "predictions":
             query = "SELECT * FROM predictions WHERE status = 'pending' LIMIT 50"
             rows = await conn.fetch(query)
             return {"resource": resource, "count": len(rows), "data": rows}
         else:
-            raise HTTPException(status_code=404, detail=f"Resource {resource} not found")
+            raise HTTPException(
+                status_code=404, detail=f"Resource {resource} not found"
+            )
     finally:
         await conn.disconnect()
 
@@ -725,21 +869,23 @@ async def write_endpoint(resource: str, payload: dict):
     """Unified write endpoint"""
     conn = databases.Database(DB_PATH)
     await conn.connect()
-    
+
     try:
-        if resource == 'memory':
+        if resource == "memory":
             query = """
                 INSERT OR REPLACE INTO memory (key, value)
                 VALUES (:key, :value)
             """
             values = {
-                "key": payload.get('key'),
-                "value": json.dumps(payload.get('value'))
+                "key": payload.get("key"),
+                "value": json.dumps(payload.get("value")),
             }
             await conn.execute(query, values)
-            return {"success": True, "resource": resource, "key": payload.get('key')}
+            return {"success": True, "resource": resource, "key": payload.get("key")}
         else:
-            raise HTTPException(status_code=404, detail=f"Resource {resource} not found")
+            raise HTTPException(
+                status_code=404, detail=f"Resource {resource} not found"
+            )
     finally:
         await conn.disconnect()
 
@@ -749,34 +895,37 @@ async def analyze_endpoint(resource: str, payload: dict):
     """Unified analyze endpoint"""
     conn = databases.Database(DB_PATH)
     await conn.connect()
-    
+
     try:
-        if resource == 'predictions':
+        if resource == "predictions":
             query = "SELECT COUNT(*) as total, status FROM predictions GROUP BY status"
             rows = await conn.fetch(query)
             return {
-                'resource': resource,
-                'analysis': {
-                    'total_predictions': sum(r['total'] for r in rows),
-                    'by_status': {r['status']: r['total'] for r in rows}
-                }
+                "resource": resource,
+                "analysis": {
+                    "total_predictions": sum(r["total"] for r in rows),
+                    "by_status": {r["status"]: r["total"] for r in rows},
+                },
             }
-        elif resource == 'jobs':
+        elif resource == "jobs":
             query = "SELECT COUNT(*) as total, status FROM jobs GROUP BY status"
             rows = await conn.fetch(query)
             return {
-                'resource': resource,
-                'analysis': {
-                    'total_jobs': sum(r['total'] for r in rows),
-                    'by_status': {r['status']: r['total'] for r in rows}
-                }
+                "resource": resource,
+                "analysis": {
+                    "total_jobs": sum(r["total"] for r in rows),
+                    "by_status": {r["status"]: r["total"] for r in rows},
+                },
             }
         else:
-            raise HTTPException(status_code=404, detail=f"Resource {resource} not found")
+            raise HTTPException(
+                status_code=404, detail=f"Resource {resource} not found"
+            )
     finally:
         await conn.disconnect()
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8003)))

@@ -3,6 +3,7 @@
 Provides structured logging, message publication, and optional memory writes.
 All agents must implement `run_task` to perform their role-specific logic.
 """
+
 from __future__ import annotations
 
 import logging
@@ -40,7 +41,12 @@ class BaseAgent:
     def __post_init__(self) -> None:
         self.logger = logging.getLogger(f"vision_cortex.agents.{self.role}")
 
-    def log_event(self, message: str, context: AgentContext, extra: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def log_event(
+        self,
+        message: str,
+        context: AgentContext,
+        extra: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
         payload = {
             "timestamp": time.time(),
             "event_id": str(uuid.uuid4()),
@@ -51,22 +57,28 @@ class BaseAgent:
             "context": context.__dict__,
             "extra": extra or {},
         }
-        self.logger.info("%s | ctx=%s | extra=%s", message, context.__dict__, extra or {})
+        self.logger.info(
+            "%s | ctx=%s | extra=%s", message, context.__dict__, extra or {}
+        )
         self.bus.publish("logs", payload)
         if self.memory:
-            self.memory.persist_event({
-                "type": "agent_status",
-                "agent": self.name,
-                "role": self.role,
-                "content": payload,
-                "confidence": context.confidence,
-                "governance_level": self.governance_level,
-                "session_hash": context.session_id,
-                "created_at": payload["timestamp"],
-            })
+            self.memory.persist_event(
+                {
+                    "type": "agent_status",
+                    "agent": self.name,
+                    "role": self.role,
+                    "content": payload,
+                    "confidence": context.confidence,
+                    "governance_level": self.governance_level,
+                    "session_hash": context.session_id,
+                    "created_at": payload["timestamp"],
+                }
+            )
         return payload
 
-    def publish_event(self, topic: str, context: AgentContext, content: Dict[str, Any]) -> None:
+    def publish_event(
+        self, topic: str, context: AgentContext, content: Dict[str, Any]
+    ) -> None:
         event = {
             "timestamp": time.time(),
             "event_id": str(uuid.uuid4()),
@@ -81,7 +93,12 @@ class BaseAgent:
         if self.memory:
             self.memory.persist_event(record)
         else:
-            self.logger.debug("No memory registry configured; skipping persist for %s", record.get("type"))
+            self.logger.debug(
+                "No memory registry configured; skipping persist for %s",
+                record.get("type"),
+            )
 
-    def run_task(self, context: AgentContext, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def run_task(
+        self, context: AgentContext, payload: Dict[str, Any]
+    ) -> Dict[str, Any]:
         raise NotImplementedError("Agents must implement run_task()")

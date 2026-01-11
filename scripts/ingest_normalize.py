@@ -7,22 +7,24 @@ records to Firestore via `storage.firestore_adapter.FirestoreAdapter`.
 Usage:
   python scripts/ingest_normalize.py --reports-dir data/reports --out-dir data/normalized --write-firestore
 """
-import os
-import json
 import argparse
+import json
+import sys
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
-import sys
+
 # ensure repo root on sys.path so `storage` and other packages import correctly
 REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from storage.firestore_adapter import FirestoreAdapter
+
 try:
     from extractors.entity_extractor import extract_entities_heuristic
 except Exception:
+
     def extract_entities_heuristic(text: str):
         return {"phones": [], "addresses": []}
 
@@ -84,7 +86,11 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--reports-dir", default="data/reports")
     p.add_argument("--out-dir", default="data/normalized")
-    p.add_argument("--write-firestore", action="store_true", help="Write normalized records to FirestoreAdapter (or local fallback)")
+    p.add_argument(
+        "--write-firestore",
+        action="store_true",
+        help="Write normalized records to FirestoreAdapter (or local fallback)",
+    )
     args = p.parse_args()
 
     reports_dir = Path(args.reports_dir)

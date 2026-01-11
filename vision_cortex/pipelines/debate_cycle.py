@@ -3,11 +3,11 @@
 Orchestrates predictor → visionary → strategist → validator → documentor to
 produce a consensus view and log dissent.
 """
+
 from __future__ import annotations
 
 import statistics
-import time
-from typing import Dict, Any
+from typing import Any, Dict
 
 from vision_cortex.agents.base_agent import AgentContext, BaseAgent
 from vision_cortex.schemas.contracts import DebateResult, DebateTurn
@@ -28,21 +28,46 @@ class DebateCycle:
         self.validator = validator
         self.documentor = documentor
 
-    def run(self, session_id: str, task_id: str, organized: Dict[str, Any]) -> Dict[str, Any]:
-        ctx = AgentContext(session_id=session_id, task_id=task_id, governance_level="MEDIUM")
+    def run(
+        self, session_id: str, task_id: str, organized: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        ctx = AgentContext(
+            session_id=session_id, task_id=task_id, governance_level="MEDIUM"
+        )
         preds = self.predictor.run_task(ctx, {"organized": organized})
         visions = self.visionary.run_task(ctx, preds)
-        strategies = self.strategist.run_task(ctx, {"scenarios": visions, "predictions": preds})
-        validations = self.validator.run_task(ctx, {"predictions": preds, "scenarios": visions})
+        strategies = self.strategist.run_task(
+            ctx, {"scenarios": visions, "predictions": preds}
+        )
+        validations = self.validator.run_task(
+            ctx, {"predictions": preds, "scenarios": visions}
+        )
         actions = strategies.get("steps", [])
-        doc = self.documentor.run_task(ctx, {"predictions": preds, "steps": strategies, "actions": actions})
+        doc = self.documentor.run_task(
+            ctx, {"predictions": preds, "steps": strategies, "actions": actions}
+        )
 
         turns = [
-            DebateTurn(role="predictor", agent=self.predictor.name, position=str(p.get("statement")), tag=p.get("tag", "UNCERTAIN"), confidence=p.get("confidence", 0.5), rationale="trend synthesis")
+            DebateTurn(
+                role="predictor",
+                agent=self.predictor.name,
+                position=str(p.get("statement")),
+                tag=p.get("tag", "UNCERTAIN"),
+                confidence=p.get("confidence", 0.5),
+                rationale="trend synthesis",
+            )
             for p in preds.get("predictions", [])
         ]
         turns.extend(
-            DebateTurn(role="validator", agent=self.validator.name, position=str(r), tag="REAL-TODAY", confidence=0.6, rationale="policy enforcement", dissent=True)
+            DebateTurn(
+                role="validator",
+                agent=self.validator.name,
+                position=str(r),
+                tag="REAL-TODAY",
+                confidence=0.6,
+                rationale="policy enforcement",
+                dissent=True,
+            )
             for r in validations.get("risks", [])
         )
         consensus, consensus_conf = self._compute_consensus(turns)
@@ -52,7 +77,10 @@ class DebateCycle:
             consensus=consensus,
             consensus_confidence=consensus_conf,
             dissenting=[t for t in turns if t.dissent],
-            metrics={"turns": len(turns), "dissent": len([t for t in turns if t.dissent])},
+            metrics={
+                "turns": len(turns),
+                "dissent": len([t for t in turns if t.dissent]),
+            },
         )
         return {
             "predictions": preds,

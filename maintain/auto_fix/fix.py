@@ -1,14 +1,19 @@
-import json, os
+import json
+import os
 from datetime import datetime
 
-BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "records", "maintain", "auto_fix"))
+BASE = os.path.abspath(
+    os.path.join(
+        os.path.dirname(__file__), "..", "..", "records", "maintain", "auto_fix"
+    )
+)
 os.makedirs(BASE, exist_ok=True)
 
 payload = {
     "module": "auto_fix",
     "timestamp": datetime.now().isoformat(),
     "status": "success",
-    "actions": ["Applied minor fixes", "Cleaned temp files"]
+    "actions": ["Applied minor fixes", "Cleaned temp files"],
 }
 
 out = os.path.join(BASE, f"auto_fix_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")

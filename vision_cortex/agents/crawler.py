@@ -1,4 +1,5 @@
 """Crawler agent: gathers external signals from provided seeds."""
+
 from __future__ import annotations
 
 import time
@@ -12,7 +13,9 @@ from vision_cortex.schemas.contracts import Observation
 class CrawlerAgent(BaseAgent):
     role = "crawler"
 
-    def run_task(self, context: AgentContext, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def run_task(
+        self, context: AgentContext, payload: Dict[str, Any]
+    ) -> Dict[str, Any]:
         seed = payload.get("seed") or {}
         sources: List[Dict[str, Any]] = seed.get("sources", [])
         observations: List[Dict[str, Any]] = []
@@ -31,14 +34,20 @@ class CrawlerAgent(BaseAgent):
                 confidence=min(confidence, 0.95),
             )
             observations.append(obs.__dict__)
-            self.log_event("Collected observation", context, {"source": url, "confidence": obs.confidence})
+            self.log_event(
+                "Collected observation",
+                context,
+                {"source": url, "confidence": obs.confidence},
+            )
         self.publish_event("observations", context, {"count": len(observations)})
-        self.persist_memory({
-            "type": "observation_batch",
-            "session_hash": context.session_id,
-            "task_id": context.task_id,
-            "content": observations,
-            "confidence": context.confidence,
-            "created_at": time.time(),
-        })
+        self.persist_memory(
+            {
+                "type": "observation_batch",
+                "session_hash": context.session_id,
+                "task_id": context.task_id,
+                "content": observations,
+                "confidence": context.confidence,
+                "created_at": time.time(),
+            }
+        )
         return {"observations": observations, "sources": len(sources)}

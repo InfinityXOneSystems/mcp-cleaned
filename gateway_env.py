@@ -4,8 +4,9 @@ Loads environment variables from real environment, `.env` file (if present),
 and provides warnings for missing credentials. Designed for local dev; for
 production migrate secrets to Secret Manager and set env vars in Cloud Run.
 """
-import os
+
 import logging
+import os
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -57,7 +58,9 @@ def init_gateway_env():
     # Warn about important credentials
     creds = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
     if not creds:
-        logger.warning("GOOGLE_APPLICATION_CREDENTIALS not set. Firestore and GCP clients will fail without credentials.")
+        logger.warning(
+            "GOOGLE_APPLICATION_CREDENTIALS not set. Firestore and GCP clients will fail without credentials."
+        )
     else:
         # normalize path
         p = Path(creds)
@@ -65,7 +68,12 @@ def init_gateway_env():
             logger.warning(f"GOOGLE_APPLICATION_CREDENTIALS file not found at {creds}")
 
     # Provide helpful debug info (non-sensitive)
-    for k in ["FIRESTORE_PROJECT", "FRONTEND_SERVICE_URL", "GATEWAY_URL", "SERVICE_MODE"]:
+    for k in [
+        "FIRESTORE_PROJECT",
+        "FRONTEND_SERVICE_URL",
+        "GATEWAY_URL",
+        "SERVICE_MODE",
+    ]:
         v = os.environ.get(k) or ENV_SAMPLE.get(k)
         logger.debug(f"ENV {k}={v}")
 

@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 import argparse
-import os
 from datetime import datetime
-from test.framework.runner import run_all, write_master_record
 from test.config import SUBSYSTEMS
+from test.framework.runner import run_all, write_master_record
 
 
 def main():

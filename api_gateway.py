@@ -2,34 +2,52 @@
 Unified API Gateway - Single entry point for all Infinity XOS endpoints
 Routes /predict, /crawl, /simulate across all systems with compliance enforcement
 """
-import sys
+
 import os
+import sys
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from fastapi import FastAPI, HTTPException, Request, Header
-from fastapi.responses import HTMLResponse, PlainTextResponse
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-import httpx
+import asyncio
 import json
+import logging
 import sqlite3
 from datetime import datetime
-from typing import Dict, Any, Optional, List
-import logging
 from enum import Enum
-import asyncio
+from typing import Any, Dict, List, Optional
+
+import httpx
+from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-from compliance import compliance_validator, validate_request_middleware, get_compliance_status
-from prediction_engine import log_prediction
+from compliance import (
+    compliance_validator,
+    get_compliance_status,
+    validate_request_middleware,
+)
 from crawler import crawl
 from google_integration import (
-    sheets_append_rows, sheets_read_range, sheets_update_range, sheets_clear_range,
-    calendar_list_events, calendar_create_event, calendar_update_event, calendar_delete_event,
-    log_prediction_to_sheet, log_crawl_to_sheet, create_event_from_prediction
+    calendar_create_event,
+    calendar_delete_event,
+    calendar_list_events,
+    calendar_update_event,
+    create_event_from_prediction,
+    log_crawl_to_sheet,
+    log_prediction_to_sheet,
+    sheets_append_rows,
+    sheets_clear_range,
+    sheets_read_range,
+    sheets_update_range,
 )
-from integrations.doc_evolution_integration import ingest_document, transform_document, evolve_document, sync_documents
+from integrations.doc_evolution_integration import (
+    evolve_document,
+    ingest_document,
+    sync_documents,
+)
+from prediction_engine import log_prediction
 from scripts.doc_mode_guard import authorize, log_change
 
 logger = logging.getLogger(__name__)
@@ -38,7 +56,7 @@ logging.basicConfig(level=logging.INFO)
 app = FastAPI(
     title="Infinity XOS - Unified Gateway",
     description="Central router for /predict, /crawl, /simulate across all systems",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 # CORS - Allow Horizons and all local apps
@@ -50,7 +68,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-DB_PATH = 'mcp_memory.db'
+DB_PATH = "mcp_memory.db"
 SERVICE_MODE = os.environ.get("SERVICE_MODE", "multi").lower()
 
 # Service URLs
@@ -65,7 +83,7 @@ ORCHESTRATOR_URL = os.environ.get("ORCHESTRATOR_URL", "http://localhost:8080")
 # Cloud Run Frontend Integration
 FRONTEND_SERVICE_URL = os.environ.get(
     "FRONTEND_SERVICE_URL",
-    "https://frontend-service-0a277877-896380409704.us-east1.run.app"
+    "https://frontend-service-0a277877-896380409704.us-east1.run.app",
 )
 
 # In single-service mode, mount sub-apps and route all traffic via gateway
@@ -88,33 +106,39 @@ if SERVICE_MODE == "single":
             "dashboard": f"{base}/dashboard",
             "intelligence": f"{base}/intelligence",
             "meta": f"{base}/meta",
-            "mcp": f"{base}/mcp"  # placeholder
+            "mcp": f"{base}/mcp",  # placeholder
         }
         ORCHESTRATOR_URL = f"{base}/orchestrator"
-        logger.info("Single-service mode enabled: mounted dashboard, intelligence, meta, orchestrator")
+        logger.info(
+            "Single-service mode enabled: mounted dashboard, intelligence, meta, orchestrator"
+        )
     except Exception as e:
         logger.error(f"Failed to enable single-service mode: {e}")
 
 # Initialize rate limiter
 limiter = Limiter(
-    get_remote_address,
-    app=app,
-    default_limits=["200 per day", "50 per hour"]
+    get_remote_address, app=app, default_limits=["200 per day", "50 per hour"]
 )
+
 
 # ===== OPENAPI SCHEMA ROUTES =====
 @app.get("/openapi/combined.yaml")
 async def get_combined_openapi():
     """Serve the combined OpenAPI schema for ChatGPT/Actions."""
     try:
-        schema_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "openapi", "combined.yaml")
+        schema_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "openapi", "combined.yaml"
+        )
         if not os.path.exists(schema_path):
-            return JSONResponse(status_code=404, content={"error": "combined.yaml not found"})
+            return JSONResponse(
+                status_code=404, content={"error": "combined.yaml not found"}
+            )
         with open(schema_path, "r", encoding="utf-8") as f:
             content = f.read()
         return PlainTextResponse(content=content, media_type="application/yaml")
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
 
 # Status color coding thresholds
 def color_from_metrics(uptime: float, error_rate: float, latency_ms: float) -> str:
@@ -125,12 +149,14 @@ def color_from_metrics(uptime: float, error_rate: float, latency_ms: float) -> s
         return "yellow"
     return "red"
 
+
 async def fetch_json(client: httpx.AsyncClient, url: str) -> dict:
     try:
         r = await client.get(url)
         return r.json()
     except Exception as e:
         return {"error": str(e)}
+
 
 async def compute_system_status() -> dict:
     """Compute live status across services and subsystems"""
@@ -143,91 +169,122 @@ async def compute_system_status() -> dict:
             "Docker": [],
             "MCP": [],
             "Intelligence": [],
-        }
+        },
     }
     async with httpx.AsyncClient(timeout=5) as client:
         # Gateway
         gw = await fetch_json(client, "http://localhost:8000/health")
-        status["categories"]["Core"].append({
-            "name": "Gateway",
-            "service": "infinity-xos-gateway",
-            "metrics": {"uptime": 0.999, "error_rate": 0.0, "latency_ms": 50},
-            "color": color_from_metrics(0.999, 0.0, 50),
-            "raw": gw
-        })
+        status["categories"]["Core"].append(
+            {
+                "name": "Gateway",
+                "service": "infinity-xos-gateway",
+                "metrics": {"uptime": 0.999, "error_rate": 0.0, "latency_ms": 50},
+                "color": color_from_metrics(0.999, 0.0, 50),
+                "raw": gw,
+            }
+        )
         # Dashboard
         dash = await fetch_json(client, f"{SERVICES['dashboard']}/api/portfolio")
-        status["categories"]["APIs"].append({
-            "name": "Dashboard API",
-            "service": "dashboard",
-            "metrics": {"uptime": 0.995, "error_rate": 0.0, "latency_ms": 70},
-            "color": color_from_metrics(0.995, 0.0, 70),
-            "raw": dash
-        })
+        status["categories"]["APIs"].append(
+            {
+                "name": "Dashboard API",
+                "service": "dashboard",
+                "metrics": {"uptime": 0.995, "error_rate": 0.0, "latency_ms": 70},
+                "color": color_from_metrics(0.995, 0.0, 70),
+                "raw": dash,
+            }
+        )
         # Intelligence
         intel = await fetch_json(client, f"{SERVICES['intelligence']}/health")
-        status["categories"]["APIs"].append({
-            "name": "Intelligence API",
-            "service": "intelligence",
-            "metrics": {"uptime": 0.99, "error_rate": 0.01, "latency_ms": 90},
-            "color": color_from_metrics(0.99, 0.01, 90),
-            "raw": intel
-        })
+        status["categories"]["APIs"].append(
+            {
+                "name": "Intelligence API",
+                "service": "intelligence",
+                "metrics": {"uptime": 0.99, "error_rate": 0.01, "latency_ms": 90},
+                "color": color_from_metrics(0.99, 0.01, 90),
+                "raw": intel,
+            }
+        )
         # Docker (version check)
         try:
-            proc = await asyncio.create_subprocess_exec("docker", "version", "--format", "{{.Server.Version}}",
-                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+            proc = await asyncio.create_subprocess_exec(
+                "docker",
+                "version",
+                "--format",
+                "{{.Server.Version}}",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
             out, err = await asyncio.wait_for(proc.communicate(), timeout=3)
             docker_ok = proc.returncode == 0
         except Exception:
             docker_ok = False
-        status["categories"]["Docker"].append({
-            "name": "Docker CLI",
-            "service": "docker",
-            "metrics": {"uptime": 0.98 if docker_ok else 0.0, "error_rate": 0.0 if docker_ok else 1.0, "latency_ms": 120},
-            "color": color_from_metrics(0.98 if docker_ok else 0.0, 0.0 if docker_ok else 1.0, 120),
-            "raw": {"ok": docker_ok}
-        })
+        status["categories"]["Docker"].append(
+            {
+                "name": "Docker CLI",
+                "service": "docker",
+                "metrics": {
+                    "uptime": 0.98 if docker_ok else 0.0,
+                    "error_rate": 0.0 if docker_ok else 1.0,
+                    "latency_ms": 120,
+                },
+                "color": color_from_metrics(
+                    0.98 if docker_ok else 0.0, 0.0 if docker_ok else 1.0, 120
+                ),
+                "raw": {"ok": docker_ok},
+            }
+        )
         # MCP (placeholder local)
-        status["categories"]["MCP"].append({
-            "name": "MCP Server",
-            "service": "mcp",
-            "metrics": {"uptime": 0.97, "error_rate": 0.02, "latency_ms": 200},
-            "color": color_from_metrics(0.97, 0.02, 200),
-            "raw": {"tools": 149}
-        })
+        status["categories"]["MCP"].append(
+            {
+                "name": "MCP Server",
+                "service": "mcp",
+                "metrics": {"uptime": 0.97, "error_rate": 0.02, "latency_ms": 200},
+                "color": color_from_metrics(0.97, 0.02, 200),
+                "raw": {"tools": 149},
+            }
+        )
     # FAANG-like quality categorization per category
     for cat, items in status["categories"].items():
         greens = sum(1 for i in items if i["color"] == "green")
         reds = sum(1 for i in items if i["color"] == "red")
-        quality = "A+" if reds == 0 and greens == len(items) else ("A" if reds == 0 else "B")
-        status["categories"][cat] = {
-            "quality": quality,
-            "items": items
-        }
+        quality = (
+            "A+" if reds == 0 and greens == len(items) else ("A" if reds == 0 else "B")
+        )
+        status["categories"][cat] = {"quality": quality, "items": items}
     # Build simple connection matrix (service -> reachable)
     matrix = {}
     async with httpx.AsyncClient(timeout=3) as client:
         for name, base in SERVICES.items():
             try:
-                probe = "/health" if name in ("intelligence", "meta") else ("/api/portfolio" if name == "dashboard" else "/health")
+                probe = (
+                    "/health"
+                    if name in ("intelligence", "meta")
+                    else ("/api/portfolio" if name == "dashboard" else "/health")
+                )
                 r = await client.get(f"{base}{probe}")
-                matrix[name] = {"reachable": r.status_code == 200, "endpoint": f"{base}{probe}"}
+                matrix[name] = {
+                    "reachable": r.status_code == 200,
+                    "endpoint": f"{base}{probe}",
+                }
             except Exception as e:
                 matrix[name] = {"reachable": False, "error": str(e)}
     status["matrix"] = matrix
     return status
 
+
 class OperationType(Enum):
     """Unified operation types across all systems"""
-    PREDICT = "predict"      # Forecasting, modeling, predictions
-    CRAWL = "crawl"          # Web scraping, data collection
-    SIMULATE = "simulate"    # Backtesting, scenario analysis
-    READ = "read"            # Data retrieval
-    ANALYZE = "analyze"      # Data analysis
-    WRITE = "write"          # Data modification
-    CREATE = "create"        # New resource creation
-    DELETE = "delete"        # Resource deletion
+
+    PREDICT = "predict"  # Forecasting, modeling, predictions
+    CRAWL = "crawl"  # Web scraping, data collection
+    SIMULATE = "simulate"  # Backtesting, scenario analysis
+    READ = "read"  # Data retrieval
+    ANALYZE = "analyze"  # Data analysis
+    WRITE = "write"  # Data modification
+    CREATE = "create"  # New resource creation
+    DELETE = "delete"  # Resource deletion
+
 
 @app.on_event("startup")
 async def startup():
@@ -236,6 +293,7 @@ async def startup():
     logger.info(f"📡 Services: {list(SERVICES.keys())}")
     logger.info("✓ Compliance enforcement: ACTIVE")
 
+
 @app.get("/health")
 async def health():
     """Gateway health check"""
@@ -243,23 +301,27 @@ async def health():
         "status": "healthy",
         "service": "infinity-xos-gateway",
         "timestamp": datetime.now().isoformat(),
-        "compliance": "enforced"
+        "compliance": "enforced",
     }
+
 
 @app.get("/compliance/status")
 async def compliance_status():
     """Get compliance status"""
     return get_compliance_status()
 
+
 @app.get("/compliance/audit-log")
 async def compliance_audit_log(limit: int = 100):
     """Get recent compliance violations"""
     return {
         "violations": compliance_validator.get_audit_log(limit),
-        "total": len(compliance_validator.violation_log)
+        "total": len(compliance_validator.violation_log),
     }
 
+
 # ===== ADMIN ENDPOINTS =====
+
 
 @app.get("/")
 async def intelligence_cockpit():
@@ -268,7 +330,11 @@ async def intelligence_cockpit():
         with open("cockpit.html", "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
-        return HTMLResponse(content="<h1>Cockpit Not Found</h1><p>cockpit.html missing.</p>", status_code=404)
+        return HTMLResponse(
+            content="<h1>Cockpit Not Found</h1><p>cockpit.html missing.</p>",
+            status_code=404,
+        )
+
 
 @app.get("/frontend")
 async def frontend_proxy():
@@ -280,8 +346,9 @@ async def frontend_proxy():
     except Exception as e:
         return HTMLResponse(
             content=f"<h1>Frontend Service Unavailable</h1><p>{str(e)}</p>",
-            status_code=503
+            status_code=503,
         )
+
 
 @app.get("/frontend/api/{path:path}")
 async def frontend_api_proxy(path: str, request: Request):
@@ -290,17 +357,14 @@ async def frontend_api_proxy(path: str, request: Request):
         async with httpx.AsyncClient() as client:
             url = f"{FRONTEND_SERVICE_URL}/api/{path}"
             response = await client.request(
-                method=request.method,
-                url=url,
-                headers=request.headers,
-                timeout=30.0
+                method=request.method, url=url, headers=request.headers, timeout=30.0
             )
             return JSONResponse(content=response.json())
     except Exception as e:
         return JSONResponse(
-            status_code=503,
-            content={"error": f"Frontend service error: {str(e)}"}
+            status_code=503, content={"error": f"Frontend service error: {str(e)}"}
         )
+
 
 @app.get("/admin")
 async def admin_console_page():
@@ -309,48 +373,53 @@ async def admin_console_page():
         # Check if user wants command_center or admin_console
         dashboard_choice = os.environ.get("PRIMARY_DASHBOARD", "command_center")
         filename = f"{dashboard_choice}.html"
-        
+
         if not os.path.exists(filename):
             filename = "admin_console.html"  # fallback
-        
+
         with open(filename, "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
     except Exception:
         return HTMLResponse(content="<h1>Admin Console</h1><p>UI file missing.</p>")
+
 
 @app.get("/admin/status")
 async def admin_status():
     """Live system status and metrics, color-coded"""
     return await compute_system_status()
 
-@app.post('/admin/doc/ingest')
+
+@app.post("/admin/doc/ingest")
 async def admin_doc_ingest(payload: Dict[str, Any]):
     """Ingest a document into the doc evolution system. Payload: {source: str, metadata: {}}"""
-    source = payload.get('source')
-    metadata = payload.get('metadata', {})
+    source = payload.get("source")
+    metadata = payload.get("metadata", {})
     if not source:
-        raise HTTPException(status_code=400, detail='source required')
+        raise HTTPException(status_code=400, detail="source required")
     result = ingest_document(source, metadata)
-    return JSONResponse(content={'result': result})
+    return JSONResponse(content={"result": result})
 
-@app.post('/admin/doc/evolve')
+
+@app.post("/admin/doc/evolve")
 async def admin_doc_evolve(payload: Dict[str, Any]):
     """Evolve a document. Payload: {doc_id: str, strategy: {}}"""
-    doc_id = payload.get('doc_id')
-    strategy = payload.get('strategy', {})
+    doc_id = payload.get("doc_id")
+    strategy = payload.get("strategy", {})
     if not doc_id:
-        raise HTTPException(status_code=400, detail='doc_id required')
+        raise HTTPException(status_code=400, detail="doc_id required")
     result = evolve_document(doc_id, strategy)
-    return JSONResponse(content={'result': result})
+    return JSONResponse(content={"result": result})
 
-@app.post('/admin/doc/sync')
+
+@app.post("/admin/doc/sync")
 async def admin_doc_sync(payload: Dict[str, Any]):
     """Sync documents to a target. Payload: {target: str}"""
-    target = payload.get('target')
+    target = payload.get("target")
     if not target:
-        raise HTTPException(status_code=400, detail='target required')
+        raise HTTPException(status_code=400, detail="target required")
     result = sync_documents(target)
-    return JSONResponse(content={'result': result})
+    return JSONResponse(content={"result": result})
+
 
 @app.get("/admin/reports")
 async def admin_reports():
@@ -362,11 +431,12 @@ async def admin_reports():
         "LIVE_TEST_REPORT.md",
         "SYSTEM_COMPLETE.md",
         "SYSTEM_GAPS_ANALYSIS.md",
-        "TRI_DIRECTIONAL_SYNC_RESULTS.md"
+        "TRI_DIRECTIONAL_SYNC_RESULTS.md",
     ]:
         if os.path.exists(fname):
             reports.append({"name": fname, "path": fname})
     return {"reports": reports}
+
 
 @app.get("/admin/settings")
 async def admin_settings():
@@ -375,8 +445,9 @@ async def admin_settings():
     return {
         "compliance": comp,
         "gateway_port": int(os.environ.get("GATEWAY_PORT", 8000)),
-        "services": SERVICES
+        "services": SERVICES,
     }
+
 
 @app.post("/admin/settings/compliance")
 async def set_compliance(level: str):
@@ -387,6 +458,7 @@ async def set_compliance(level: str):
     except Exception as e:
         return JSONResponse(status_code=400, content={"error": str(e)})
 
+
 @app.get("/admin/recommendations")
 async def admin_recommendations():
     """Generate system enhancement recommendations based on status"""
@@ -395,46 +467,59 @@ async def admin_recommendations():
     for cat, payload in status["categories"].items():
         for item in payload["items"]:
             if item["color"] == "yellow":
-                recs.append({
-                    "area": item["name"],
-                    "severity": "medium",
-                    "action": "Optimize latency and monitor error rate",
-                    "details": item
-                })
+                recs.append(
+                    {
+                        "area": item["name"],
+                        "severity": "medium",
+                        "action": "Optimize latency and monitor error rate",
+                        "details": item,
+                    }
+                )
             elif item["color"] == "red":
-                recs.append({
-                    "area": item["name"],
-                    "severity": "high",
-                    "action": "Investigate outages, restart service, check logs",
-                    "details": item
-                })
+                recs.append(
+                    {
+                        "area": item["name"],
+                        "severity": "high",
+                        "action": "Investigate outages, restart service, check logs",
+                        "details": item,
+                    }
+                )
     return {"recommendations": recs, "timestamp": status["timestamp"]}
 
 
-@app.get('/admin/doc/mode')
+@app.get("/admin/doc/mode")
 async def admin_doc_mode_get():
     """Get current doc evolution integration mode and file path"""
     try:
-        from integrations.doc_evolution_integration import get_mode, get_doc_ev_file
+        from integrations.doc_evolution_integration import get_doc_ev_file, get_mode
+
         return {"mode": get_mode(), "doc_ev_file": get_doc_ev_file()}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
-@app.post('/admin/doc/mode')
-async def admin_doc_mode_set(payload: Dict[str, Any], x_passphrase: Optional[str] = Header(default=None)):
+@app.post("/admin/doc/mode")
+async def admin_doc_mode_set(
+    payload: Dict[str, Any], x_passphrase: Optional[str] = Header(default=None)
+):
     """Set doc evolution integration mode. Payload: {mode: str} or {path_override: str} or both. Protected by passphrase."""
     try:
-        from integrations.doc_evolution_integration import set_mode, set_doc_ev_path_override
-        if not authorize(x_passphrase or payload.get('passphrase', '')):
+        from integrations.doc_evolution_integration import (
+            set_doc_ev_path_override,
+            set_mode,
+        )
+
+        if not authorize(x_passphrase or payload.get("passphrase", "")):
             raise HTTPException(status_code=403, detail="invalid passphrase")
         resp = {}
-        if 'mode' in payload:
-            resp['mode'] = set_mode(payload['mode'])
-            log_change('admin', payload['mode'], payload.get('path_override'))
-        if 'path_override' in payload:
-            resp['path'] = set_doc_ev_path_override(payload['path_override'])
-            log_change('admin', payload.get('mode', 'no-mode-change'), payload['path_override'])
+        if "mode" in payload:
+            resp["mode"] = set_mode(payload["mode"])
+            log_change("admin", payload["mode"], payload.get("path_override"))
+        if "path_override" in payload:
+            resp["path"] = set_doc_ev_path_override(payload["path_override"])
+            log_change(
+                "admin", payload.get("mode", "no-mode-change"), payload["path_override"]
+            )
         return resp
     except HTTPException:
         raise
@@ -463,11 +548,21 @@ async def mcp_execute(payload: Dict[str, Any]):
                 },
             )
             if resp.status_code >= 400:
-                return JSONResponse(status_code=resp.status_code, content={"error": resp.text})
+                return JSONResponse(
+                    status_code=resp.status_code, content={"error": resp.text}
+                )
             ct = resp.headers.get("content-type", "")
-            return resp.json() if ct.startswith("application/json") else {"status": resp.status_code, "body": resp.text[:500]}
+            return (
+                resp.json()
+                if ct.startswith("application/json")
+                else {"status": resp.status_code, "body": resp.text[:500]}
+            )
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e), "note": "orchestrator unreachable"})
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e), "note": "orchestrator unreachable"},
+        )
+
 
 @app.get("/admin/endpoints")
 async def admin_endpoints():
@@ -524,6 +619,7 @@ async def admin_endpoints():
     }
     return {"endpoints": endpoints, "services": SERVICES}
 
+
 @app.post("/admin/chat")
 async def admin_chat(payload: Dict[str, Any]):
     """Chat stub endpoint supporting provider selection and model hints.
@@ -545,7 +641,7 @@ async def admin_chat(payload: Dict[str, Any]):
             "reply": f"{provider} chat is not directly available via gateway. Configure integration to enable.",
             "echo": message,
             "history": history,
-            "status": "stub"
+            "status": "stub",
         }
 
     if provider == "chatgpt":
@@ -555,12 +651,14 @@ async def admin_chat(payload: Dict[str, Any]):
             "model": model,
             "reply": f"[stub:{model}] {message}",
             "history": history + [{"role": "user", "content": message}],
-            "status": "ok"
+            "status": "ok",
         }
 
     return JSONResponse(status_code=400, content={"error": "Unknown provider"})
 
+
 # ===== UNIFIED /predict ENDPOINT =====
+
 
 @app.post("/predict")
 async def unified_predict(
@@ -572,12 +670,12 @@ async def unified_predict(
     target_date: str = None,
     confidence: int = 50,
     data_sources: Optional[List[str]] = None,
-    user_id: Optional[str] = Header(None)
+    user_id: Optional[str] = Header(None),
 ):
     """
     Unified predict endpoint
     Calls prediction engine across all systems
-    
+
     Args:
         asset: Ticker/Symbol (TSLA, BTC, etc.)
         asset_type: crypto, stock, forex, commodity
@@ -593,36 +691,32 @@ async def unified_predict(
         violation = await validate_request_middleware(
             "google",
             "predict",
-            {
-                "asset": asset,
-                "type": asset_type,
-                "timeframe": timeframe
-            },
+            {"asset": asset, "type": asset_type, "timeframe": timeframe},
             dict(request.headers),
-            user_id
+            user_id,
         )
         if violation:
             return JSONResponse(status_code=403, content=violation)
-        
+
         # Rate limit check
         if not compliance_validator.check_rate_limit("google", "read"):
             raise HTTPException(status_code=429, detail="Rate limit exceeded")
-        
+
         # Log to database
         pred_id = log_prediction(
             asset=asset,
             asset_type=asset_type,
             prediction_type=prediction_type,
             timeframe=timeframe,
-            target_date=target_date or datetime.now().isoformat().split('T')[0],
+            target_date=target_date or datetime.now().isoformat().split("T")[0],
             confidence=confidence,
             rationale=f"Gateway prediction request for {asset}",
-            data_sources=data_sources or []
+            data_sources=data_sources or [],
         )
-        
+
         # Route to appropriate services based on asset type
         responses = []
-        
+
         # 1. Call Intelligence API for sentiment/data
         try:
             async with httpx.AsyncClient(timeout=30) as client:
@@ -631,14 +725,16 @@ async def unified_predict(
                     json={
                         "asset": asset,
                         "asset_type": asset_type,
-                        "timeframe": timeframe
-                    }
+                        "timeframe": timeframe,
+                    },
                 )
                 if intel_response.status_code == 200:
-                    responses.append({"source": "intelligence", "data": intel_response.json()})
+                    responses.append(
+                        {"source": "intelligence", "data": intel_response.json()}
+                    )
         except Exception as e:
             logger.warning(f"Intelligence service unavailable: {e}")
-        
+
         # 2. Call Meta Service for historical analysis
         try:
             async with httpx.AsyncClient(timeout=30) as client:
@@ -647,26 +743,28 @@ async def unified_predict(
                     json={
                         "asset": asset,
                         "prediction_type": prediction_type,
-                        "confidence": confidence
-                    }
+                        "confidence": confidence,
+                    },
                 )
                 if meta_response.status_code == 200:
                     responses.append({"source": "meta", "data": meta_response.json()})
         except Exception as e:
             logger.warning(f"Meta service unavailable: {e}")
-        
+
         # 3. Call Dashboard for portfolio context
         try:
             async with httpx.AsyncClient(timeout=30) as client:
                 dash_response = await client.post(
                     f"{SERVICES['dashboard']}/api/predict",
-                    json={"asset": asset, "confidence": confidence}
+                    json={"asset": asset, "confidence": confidence},
                 )
                 if dash_response.status_code == 200:
-                    responses.append({"source": "dashboard", "data": dash_response.json()})
+                    responses.append(
+                        {"source": "dashboard", "data": dash_response.json()}
+                    )
         except Exception as e:
             logger.warning(f"Dashboard service unavailable: {e}")
-        
+
         return {
             "success": True,
             "prediction_id": pred_id,
@@ -678,16 +776,18 @@ async def unified_predict(
             "sources": len(responses),
             "responses": responses,
             "timestamp": datetime.now().isoformat(),
-            "compliance": "verified"
+            "compliance": "verified",
         }
-    
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Predict error: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+
 # ===== UNIFIED /crawl ENDPOINT =====
+
 
 @app.post("/crawl")
 async def unified_crawl(
@@ -696,12 +796,12 @@ async def unified_crawl(
     depth: int = 1,
     max_pages: int = 100,
     filters: Optional[Dict[str, Any]] = None,
-    user_id: Optional[str] = Header(None)
+    user_id: Optional[str] = Header(None),
 ):
     """
     Unified crawl endpoint
     Web crawling and scraping across all sources
-    
+
     Args:
         url: URL to crawl
         depth: Crawl depth (1-5)
@@ -716,40 +816,40 @@ async def unified_crawl(
             "crawl",
             {"url": url, "depth": depth},
             dict(request.headers),
-            user_id
+            user_id,
         )
         if violation:
             return JSONResponse(status_code=403, content=violation)
-        
+
         # Rate limit check
         if not compliance_validator.check_rate_limit("google", "read"):
             raise HTTPException(status_code=429, detail="Rate limit exceeded")
-        
+
         # Execute crawl
         crawl_results = crawl(
-            start_url=url,
-            depth=depth,
-            max_pages=max_pages,
-            filters=filters or {}
+            start_url=url, depth=depth, max_pages=max_pages, filters=filters or {}
         )
-        
+
         # Log crawl job
         conn = sqlite3.connect(DB_PATH)
         cur = conn.cursor()
-        cur.execute("""
+        cur.execute(
+            """
             INSERT INTO jobs (type, action, payload, status, result)
             VALUES (?, ?, ?, ?, ?)
-        """, (
-            "crawl",
-            "web_scrape",
-            json.dumps({"url": url, "depth": depth}),
-            "completed",
-            json.dumps(crawl_results)
-        ))
+        """,
+            (
+                "crawl",
+                "web_scrape",
+                json.dumps({"url": url, "depth": depth}),
+                "completed",
+                json.dumps(crawl_results),
+            ),
+        )
         conn.commit()
         job_id = cur.lastrowid
         conn.close()
-        
+
         return {
             "success": True,
             "job_id": job_id,
@@ -758,16 +858,18 @@ async def unified_crawl(
             "pages_crawled": len(crawl_results.get("pages", [])),
             "data": crawl_results,
             "timestamp": datetime.now().isoformat(),
-            "compliance": "verified"
+            "compliance": "verified",
         }
-    
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Crawl error: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+
 # ===== UNIFIED /simulate ENDPOINT =====
+
 
 @app.post("/simulate")
 async def unified_simulate(
@@ -775,12 +877,12 @@ async def unified_simulate(
     scenario: str,
     asset: Optional[str] = None,
     parameters: Optional[Dict[str, Any]] = None,
-    user_id: Optional[str] = Header(None)
+    user_id: Optional[str] = Header(None),
 ):
     """
     Unified simulate endpoint
     Backtesting, scenario analysis, market simulations
-    
+
     Args:
         scenario: Scenario name (backtest, monte_carlo, stress_test, etc.)
         asset: Asset to simulate (optional)
@@ -794,31 +896,29 @@ async def unified_simulate(
             "simulate",
             {"scenario": scenario, "asset": asset},
             dict(request.headers),
-            user_id
+            user_id,
         )
         if violation:
             return JSONResponse(status_code=403, content=violation)
-        
+
         # Rate limit check
         if not compliance_validator.check_rate_limit("google", "read"):
             raise HTTPException(status_code=429, detail="Rate limit exceeded")
-        
+
         # Log simulation job
         conn = sqlite3.connect(DB_PATH)
         cur = conn.cursor()
-        cur.execute("""
+        cur.execute(
+            """
             INSERT INTO jobs (type, action, payload, status)
             VALUES (?, ?, ?, ?)
-        """, (
-            "simulate",
-            scenario,
-            json.dumps(parameters or {}),
-            "pending"
-        ))
+        """,
+            ("simulate", scenario, json.dumps(parameters or {}), "pending"),
+        )
         conn.commit()
         job_id = cur.lastrowid
         conn.close()
-        
+
         # Route to Dashboard API for backtesting
         responses = []
         try:
@@ -828,29 +928,28 @@ async def unified_simulate(
                     json={
                         "scenario": scenario,
                         "asset": asset,
-                        "parameters": parameters or {}
-                    }
+                        "parameters": parameters or {},
+                    },
                 )
                 if dash_response.status_code == 200:
-                    responses.append({"source": "dashboard", "data": dash_response.json()})
+                    responses.append(
+                        {"source": "dashboard", "data": dash_response.json()}
+                    )
         except Exception as e:
             logger.warning(f"Dashboard simulation unavailable: {e}")
-        
+
         # Route to Meta Service
         try:
             async with httpx.AsyncClient(timeout=60) as client:
                 meta_response = await client.post(
                     f"{SERVICES['meta']}/api/simulate",
-                    json={
-                        "scenario": scenario,
-                        "parameters": parameters or {}
-                    }
+                    json={"scenario": scenario, "parameters": parameters or {}},
                 )
                 if meta_response.status_code == 200:
                     responses.append({"source": "meta", "data": meta_response.json()})
         except Exception as e:
             logger.warning(f"Meta simulation unavailable: {e}")
-        
+
         return {
             "success": True,
             "job_id": job_id,
@@ -859,22 +958,24 @@ async def unified_simulate(
             "status": "running",
             "responses": responses,
             "timestamp": datetime.now().isoformat(),
-            "compliance": "verified"
+            "compliance": "verified",
         }
-    
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Simulate error: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+
 # ===== PROXY ENDPOINTS FOR OTHER OPERATIONS =====
+
 
 @app.post("/read/{resource}")
 async def proxy_read(resource: str, request: Request):
     """Proxy read operations to appropriate service"""
     body = await request.json()
-    
+
     # Route based on resource
     if resource in ["intelligence", "sources", "categories"]:
         service = "intelligence"
@@ -884,23 +985,24 @@ async def proxy_read(resource: str, request: Request):
         service = "meta"
     else:
         service = "meta"
-    
+
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             response = await client.post(
                 f"{SERVICES[service]}/api/{resource}/read",
                 json=body,
-                headers={"Authorization": request.headers.get("Authorization", "")}
+                headers={"Authorization": request.headers.get("Authorization", "")},
             )
             return response.json()
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+
 @app.post("/write/{resource}")
 async def proxy_write(resource: str, request: Request):
     """Proxy write operations to appropriate service"""
     body = await request.json()
-    
+
     # Route based on resource
     if resource in ["portfolio", "bank"]:
         service = "dashboard"
@@ -908,23 +1010,24 @@ async def proxy_write(resource: str, request: Request):
         service = "meta"
     else:
         service = "meta"
-    
+
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             response = await client.post(
                 f"{SERVICES[service]}/api/{resource}/write",
                 json=body,
-                headers={"Authorization": request.headers.get("Authorization", "")}
+                headers={"Authorization": request.headers.get("Authorization", "")},
             )
             return response.json()
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+
 @app.post("/analyze/{resource}")
 async def proxy_analyze(resource: str, request: Request):
     """Proxy analyze operations to appropriate service"""
     body = await request.json()
-    
+
     if resource in ["intelligence", "sources"]:
         service = "intelligence"
     elif resource in ["portfolio", "positions"]:
@@ -933,19 +1036,21 @@ async def proxy_analyze(resource: str, request: Request):
         service = "meta"
     else:
         service = "meta"
-    
+
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             response = await client.post(
                 f"{SERVICES[service]}/api/{resource}/analyze",
                 json=body,
-                headers={"Authorization": request.headers.get("Authorization", "")}
+                headers={"Authorization": request.headers.get("Authorization", "")},
             )
             return response.json()
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+
 # ===== GOOGLE SHEETS ENDPOINTS =====
+
 
 @app.post("/sheets/append")
 async def sheets_append(sheet_id: str, range_name: str, values: List[List[Any]]):
@@ -956,6 +1061,7 @@ async def sheets_append(sheet_id: str, range_name: str, values: List[List[Any]])
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+
 @app.get("/sheets/read")
 async def sheets_read(sheet_id: str, range_name: str):
     """Read range from Google Sheet"""
@@ -964,6 +1070,7 @@ async def sheets_read(sheet_id: str, range_name: str):
         return result
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
 
 @app.post("/sheets/update")
 async def sheets_update(sheet_id: str, range_name: str, values: List[List[Any]]):
@@ -974,6 +1081,7 @@ async def sheets_update(sheet_id: str, range_name: str, values: List[List[Any]])
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+
 @app.post("/sheets/clear")
 async def sheets_clear(sheet_id: str, range_name: str):
     """Clear range in Google Sheet"""
@@ -982,6 +1090,7 @@ async def sheets_clear(sheet_id: str, range_name: str):
         return result
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
 
 @app.post("/sheets/log_prediction")
 async def sheets_log_pred(sheet_id: str, prediction_data: Dict[str, Any]):
@@ -992,6 +1101,7 @@ async def sheets_log_pred(sheet_id: str, prediction_data: Dict[str, Any]):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+
 @app.post("/sheets/log_crawl")
 async def sheets_log_cr(sheet_id: str, crawl_data: Dict[str, Any]):
     """Log crawl to Google Sheet"""
@@ -1001,16 +1111,21 @@ async def sheets_log_cr(sheet_id: str, crawl_data: Dict[str, Any]):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+
 # ===== GOOGLE CALENDAR ENDPOINTS =====
 
+
 @app.get("/calendar/events")
-async def calendar_events(calendar_id: str = "primary", max_results: int = 10, time_min: Optional[str] = None):
+async def calendar_events(
+    calendar_id: str = "primary", max_results: int = 10, time_min: Optional[str] = None
+):
     """List calendar events"""
     try:
         result = calendar_list_events(calendar_id, max_results, time_min)
         return result
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
 
 @app.post("/calendar/create")
 async def calendar_create(
@@ -1019,14 +1134,17 @@ async def calendar_create(
     start_time: str,
     end_time: str,
     description: Optional[str] = None,
-    location: Optional[str] = None
+    location: Optional[str] = None,
 ):
     """Create calendar event"""
     try:
-        result = calendar_create_event(calendar_id, summary, start_time, end_time, description, location)
+        result = calendar_create_event(
+            calendar_id, summary, start_time, end_time, description, location
+        )
         return result
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
 
 @app.post("/calendar/update")
 async def calendar_update(
@@ -1035,14 +1153,17 @@ async def calendar_update(
     summary: Optional[str] = None,
     start_time: Optional[str] = None,
     end_time: Optional[str] = None,
-    description: Optional[str] = None
+    description: Optional[str] = None,
 ):
     """Update calendar event"""
     try:
-        result = calendar_update_event(calendar_id, event_id, summary, start_time, end_time, description)
+        result = calendar_update_event(
+            calendar_id, event_id, summary, start_time, end_time, description
+        )
         return result
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
 
 @app.post("/calendar/delete")
 async def calendar_del(calendar_id: str, event_id: str):
@@ -1053,6 +1174,7 @@ async def calendar_del(calendar_id: str, event_id: str):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+
 @app.post("/calendar/from_prediction")
 async def calendar_from_pred(calendar_id: str, prediction_data: Dict[str, Any]):
     """Create calendar event from prediction"""
@@ -1062,7 +1184,9 @@ async def calendar_from_pred(calendar_id: str, prediction_data: Dict[str, Any]):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+
 if __name__ == "__main__":
     import uvicorn
+
     port = int(os.environ.get("GATEWAY_PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
